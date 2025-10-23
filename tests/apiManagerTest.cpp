@@ -10,12 +10,17 @@ int main() {
     AstraLib::Buffers::AtomicRingBuffer<Candle,2048> vec;
     AstraLib::Buffers::AtomicRingBuffer<OpenInterest,1024> vec2;
     AstraLib::Time::Timer timer;
+
     APIManager::FuturesAPI futuresAPI(manager);
     APIManager::SpotAPI spotAPI(manager);
+
     APIManager::WebsocketStreams::Futures::TradeEventStream tradeEventStream(manager , "btcusdt");
+
+    APIManager::UserDataStreams::UserFuturesStream userFuturesAPI(manager);
+
     timer.start();
     spotAPI.fetchCandles(vec,"BTCUSDT","5m");
-    timer.write("Fetched candles from spot API in: ");
+    timer.write("Fetched candles from spot API");
     for(int i = 0; i < 20; i++) {
         Candle candle = vec.dequeue();
         //std::cout << std::fixed << std::setprecision(8)
@@ -30,7 +35,7 @@ int main() {
     }
     timer.start();
     futuresAPI.fetchOpenInterestHist(vec2,"BTCUSDT","5m");
-    timer.write("Fetched open interest history from futures API in: ");
+    timer.write("Fetched open interest history from futures API");
     for(int i = 0; i < 20; i++) {
         OpenInterest oi = vec2.dequeue();
 
@@ -43,7 +48,7 @@ int main() {
 
     timer.start();
     CurrentOpenInterest openInterest = futuresAPI.fetchOpenInterestCurrent("btcusdt");
-    timer.write("Fetched current open interest from futures API in: ");
+    timer.write("Fetched current open interest from futures API");
     //std::cout << std::fixed << std::setprecision(8)
     //<< openInterest.timestamp << " | "
     //<< openInterest.openInterest << " | "
@@ -51,21 +56,27 @@ int main() {
 
     timer.start();
     AstraLib::Buffers::AtomicRingBuffer<TradeEvent,1024>& tradeEventStreamBuffer = tradeEventStream.accessToTradeEventStream();
-    timer.write("Fetched event stream buffer refference in: ");
+    timer.write("Fetched event stream buffer refference");
+
     timer.start();
     TradeEvent event =  tradeEventStreamBuffer.dequeue();
-    timer.write("Dequeued a trade event from buffer in: ");
+    timer.write("Dequeued a trade event from buffer");
+
     timer.start();
     TradeEvent event2 = tradeEventStreamBuffer.dequeue();
-    timer.write("Dequeued a trade event from buffer in: ");
+    timer.write("Dequeued a trade event from buffer");
+
     std::cout << "timestamp: " << event.timestamp
           << ", price: " << event.price
           << ", volume: " << event.volume
           << ", maker: " << std::boolalpha << event.maker
           << std::endl;
+
     std::cout << "timestamp: " << event2.timestamp
           << ", price: " << event2.price
           << ", volume: " << event2.volume
           << ", maker: " << std::boolalpha << event2.maker
           << std::endl;
+
+    
 }

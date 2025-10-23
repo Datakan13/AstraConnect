@@ -16,3 +16,6 @@
 #include <boost/asio/use_awaitable.hpp>
 #include <coroutine>
 #include <boost/asio/io_context.hpp>
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/random_generator.hpp>
+#include <boost/uuid/uuid_io.hpp> 

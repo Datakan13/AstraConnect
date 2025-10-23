@@ -11,7 +11,7 @@
 #include <utility>
 #include <AstraLib/Buffers/atomicRingBuffer.hpp>
 #include <iostream>
-
+#include <fstream>
 /*
     Payload example for trade event stream
     Update rate: Event based
@@ -67,11 +67,13 @@ auto MarkPriceCreation = [](simdjson::padded_string& json, simdjson::ondemand::p
     return out;
 };  
 
+
 class APIManager {
 
     const std::string hostSpot = "api.binance.com";
     const std::string hostFutures = "fapi.binance.com";
     const std::string hostFuturesWebsocket = "fstream.binance.com";
+    std::string APIKey;
     boost::asio::io_context& ioc;
     boost::asio::ssl::context& ctx;
 
@@ -269,11 +271,88 @@ class APIManager {
 
     };    
 
+    class UserDataStreams {
+        public:
+        class UserFuturesStream {
+            StreamHolder userDataStream;
+            std::string APIKey;
+            std::string listenKey;
+            simdjson::ondemand::parser parser;
+            StreamHolder::RequestParameter<std::string> listenKeyParameter;
+            StreamHolder::RequestParameter<std::string> requestId;
+            StreamHolder::RequestParameter<std::string> method;
+            StreamHolder::RequestParameter<std::string> parameters;
+            /*  
+                Payload example for listen key 
+                {"listenKey":"gwKzdioWPho490C2wogHUt9EF8rfkSxO5EVILWXV7gD0k94n7wP97EEfzA3DURPH"}
+            */
+            public:
+            void getListenKey() {
+                std::string target = "/fapi/v1/listenKey";
+                auto json = userDataStream.sendRequest(target,http::verb::post,true,listenKeyParameter);
+                auto doc = parser.iterate(json);
+                doc.find_field("listenKey").get_string(listenKey,true);
+            }
+
+            void deleteListenKey() {
+                std::string target = "/fapi/v1/listenKey";
+                auto json = userDataStream.sendRequest(target,http::verb::delete_,true,listenKeyParameter);
+            }
+
+            void startUserDataStream() {
+                std::string target = "";
+                auto json = userDataStream.sendRequest(target,http::verb::post,true,requestId,parameters);
+            }
+
+            UserFuturesStream(APIManager& base_) : userDataStream(base_.ioc,base_.ctx,base_.hostFutures),
+                APIKey(base_.APIKey),
+                listenKeyParameter("X-MBX-APIKEY",base_.APIKey), 
+                requestId("X-Request-ID", boost::uuids::to_string(boost::uuids::random_generator()())),
+                method("method", "userDataStream.start"),
+                parameters("parameters")
+                {
+                getListenKey();
+                parameters.makeRequestFromRequestParameters("apikey", APIKey);
+            }
+
+            ~UserFuturesStream() {
+                deleteListenKey();
+            }
+        };
+
+       
+        class UserSpotStream {
+            StreamHolder userDataStream;
+            std::string APIKey;
+            std::string listenKey;
+            simdjson::ondemand::parser parser;
+            StreamHolder::RequestParameter<std::string> listenKeyParameter;
+
+             /*
+                Payload example for listen key 
+                {"listenKey":"CFhC7fBYdyq2PoFnsk9U5lvpCEb5fEyQkjCR0DdvPCCzCZMEt9DCGrKzb"}
+            */
+            public:
+            void getListenKey() {
+                std::string target = "/fapi/v1/listenKey";
+                auto json = userDataStream.sendRequest(target,http::verb::post,true,listenKeyParameter);
+                std::cout << json << std::endl;
+                auto doc = parser.iterate(json);
+                doc.find_field("listenKey").get_string(listenKey,true);
+                std::cout << listenKey << std::endl;
+            }
+
+            UserSpotStream(APIManager& base_) : userDataStream(base_.ioc,base_.ctx,base_.hostFutures), APIKey(base_.APIKey),listenKeyParameter("X-MBX-APIKEY",base_.APIKey){
+                
+            }
+        };
+    };
+
     public:
     APIManager(boost::asio::io_context& ioc_, boost::asio::ssl::context& ctx_) :
     ioc(ioc_), ctx(ctx_) {
-
-    
+        APIKey = std::getenv("API_KEY");
+        
     }
 
 

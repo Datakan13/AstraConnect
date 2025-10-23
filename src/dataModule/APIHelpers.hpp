@@ -2,7 +2,9 @@
 #include "boost_include_helpers/includeBoost.hpp"
 #include "simdjson.h"
 #include "threadSafeParser.hpp"
+#include <bitset>
 #include <AstraLib/AstraLib.hpp>
+#include <type_traits>
 class StreamHolder {
     net::io_context& ioc;
     net::ssl::context& ctx;
@@ -36,13 +38,48 @@ class StreamHolder {
     }
 
     public:
+    
+    template<typename T>
+    class RequestParameter {
+        public:
+        T requestField;
+        std::string request;
+
+        template<typename... Args>
+        void makeRequestFromRequestParameters(Args&&... requestParameters) {
+            std::string json = "{";
+            bool first = true;
+
+            // Expand the pack and concatenate results
+            (([&] {
+                if (!first) json += ", ";
+                else first = false;
+                json += "\"" + requestParameters.requestField + "\": \"" + requestParameters.request + "\"";
+            }()), ...);
+
+            json += "}";
+            request = json;
+        }
+
+        RequestParameter(T requestField_,std::string request_) : requestField(requestField_), request(request_) {
+
+        }
+
+        RequestParameter(T requestField_) : requestField(requestField_){
+
+        }
+    };
+    
+
     //Returns a simdjson::padded_string that can be iterated
-    auto sendRequest(const std::string& target) {
+    auto sendRequest(const std::string& target, http::verb method = http::verb::get, bool keepAlive = true) {
         AstraLib::Atomic::SpinlockGuard guard(lock);
-        http::request<http::string_body> req{http::verb::get, target, version};
+        http::request<http::string_body> req{method, target, version};
         req.set(http::field::host, host);
-        req.set(http::field::user_agent, "CandleFetcher/1.0");
-        req.set(http::field::connection, "keep-alive");
+        req.set(http::field::user_agent, "APIManager/1.0");
+        if (keepAlive) {
+            req.set(http::field::connection, "keep-alive");
+        }
         http::write(stream, req);
         http::read(stream, buffer, res);
         auto json = simdjson::padded_string(
@@ -53,7 +90,29 @@ class StreamHolder {
         res.clear();
         return json;
     }
+    
 
+    // Use
+    template<typename... Args>
+    auto sendRequest(const std::string& target, http::verb method = http::verb::get, bool keepAlive = true,RequestParameter<Args>... requestParameters) {
+        AstraLib::Atomic::SpinlockGuard guard(lock);
+        http::request<http::string_body> req{method, target, version};
+        req.set(http::field::host, host);
+        req.set(http::field::user_agent, "APIManager/1.0");
+        if (keepAlive) {
+            req.set(http::field::connection, "keep-alive");
+        }
+        ((req.set(requestParameters.requestField, requestParameters.request)), ...);
+        http::write(stream, req);
+        http::read(stream, buffer, res);
+        auto json = simdjson::padded_string(
+            boost::beast::buffers_to_string(res.body().data())
+        );
+        buffer.consume(buffer.size());
+        res.body().clear(); 
+        res.clear();
+        return json;
+    }
 
     StreamHolder(net::io_context& ioc_, net::ssl::context& ctx_, std::string host_) : 
     ioc(ioc_),ctx(ctx_) 
@@ -145,3 +204,5 @@ class WebsocketStreamHolder {
         thread.detach();
     }
 };
+
+
