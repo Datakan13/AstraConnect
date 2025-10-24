@@ -38,27 +38,59 @@ class StreamHolder {
     }
 
     public:
+    template<typename... Args>
+        std::string makeRequestFromRequestParameters(Args&&... requestParameters) {
+
+           if (((!requestParameters.requestField.empty() && !requestParameters.request.empty()) && ...)) {
+                std::string json = "{";
+                bool first = true;
+
+                // Expand the pack and concatenate results
+                (([&] {
+                    if (!first) json += ", ";
+                    else first = false;
+                    if(requestParameters.isConstructed) {
+                        json += "\"" + requestParameters.requestField + "\": " + requestParameters.request;
+                    } else {
+                        json += "\"" + requestParameters.requestField + "\": \"" + requestParameters.request + "\"";
+                    }
+                }()), ...);
+
+                json += "}";
+                return json;
+            } else {
+                return "";
+            }
+
+            
+    }
     
     template<typename T>
     class RequestParameter {
         public:
-        T requestField;
-        std::string request;
-
+        T requestField = "";
+        std::string request = "";
+        bool isConstructed = false;
         template<typename... Args>
         void makeRequestFromRequestParameters(Args&&... requestParameters) {
-            std::string json = "{";
-            bool first = true;
 
-            // Expand the pack and concatenate results
-            (([&] {
-                if (!first) json += ", ";
-                else first = false;
-                json += "\"" + requestParameters.requestField + "\": \"" + requestParameters.request + "\"";
-            }()), ...);
+           if (((!requestParameters.requestField.empty() && !requestParameters.request.empty()) && ...)) {
+                std::string json = "{";
+                bool first = true;
 
-            json += "}";
-            request = json;
+                // Expand the pack and concatenate results
+                (([&] {
+                    if (!first) json += ", ";
+                    else first = false;
+                    json += "\"" + requestParameters.requestField + "\": \"" + requestParameters.request + "\"";
+                }()), ...);
+
+                json += "}";
+                request = json;
+                isConstructed = true;
+            }
+
+            
         }
 
         RequestParameter(T requestField_,std::string request_) : requestField(requestField_), request(request_) {
@@ -69,7 +101,7 @@ class StreamHolder {
 
         }
     };
-    
+
 
     //Returns a simdjson::padded_string that can be iterated
     auto sendRequest(const std::string& target, http::verb method = http::verb::get, bool keepAlive = true) {
@@ -94,15 +126,31 @@ class StreamHolder {
 
     // Use
     template<typename... Args>
-    auto sendRequest(const std::string& target, http::verb method = http::verb::get, bool keepAlive = true,RequestParameter<Args>... requestParameters) {
+    auto sendRequest(const std::string& target, http::verb method = http::verb::get,
+         bool keepAlive = true, bool needBody = false,
+         RequestParameter<Args>... requestParameters) {
+
         AstraLib::Atomic::SpinlockGuard guard(lock);
         http::request<http::string_body> req{method, target, version};
+
         req.set(http::field::host, host);
         req.set(http::field::user_agent, "APIManager/1.0");
         if (keepAlive) {
             req.set(http::field::connection, "keep-alive");
         }
-        ((req.set(requestParameters.requestField, requestParameters.request)), ...);
+
+        if(needBody) {
+            std::string test = makeRequestFromRequestParameters(std::forward<RequestParameter<Args>>(requestParameters)...);
+            std::cout << test << std::endl;
+            req.body() = test;
+            req.prepare_payload();
+        } else {
+            ((req.set(requestParameters.requestField, requestParameters.request)), ...);
+        }
+       
+        
+        
+        std::cout << req << std::endl;
         http::write(stream, req);
         http::read(stream, buffer, res);
         auto json = simdjson::padded_string(

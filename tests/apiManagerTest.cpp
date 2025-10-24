@@ -10,10 +10,8 @@ int main() {
     AstraLib::Buffers::AtomicRingBuffer<Candle,2048> vec;
     AstraLib::Buffers::AtomicRingBuffer<OpenInterest,1024> vec2;
     AstraLib::Time::Timer timer;
-
     APIManager::FuturesAPI futuresAPI(manager);
     APIManager::SpotAPI spotAPI(manager);
-
     APIManager::WebsocketStreams::Futures::TradeEventStream tradeEventStream(manager , "btcusdt");
 
     APIManager::UserDataStreams::UserFuturesStream userFuturesAPI(manager);
@@ -78,5 +76,4 @@ int main() {
           << ", maker: " << std::boolalpha << event2.maker
           << std::endl;
 
-    
 }

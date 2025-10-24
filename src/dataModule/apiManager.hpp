@@ -8,6 +8,8 @@
 #include "threadSafeParser.hpp"
 #include "tradeEvent.hpp"
 #include "markPrice.hpp"
+#include "userDataStream/userDataStreanClass.hpp"
+#include "userDataStream/userDataStreamFunctions.hpp"
 #include <utility>
 #include <AstraLib/Buffers/atomicRingBuffer.hpp>
 #include <iostream>
@@ -67,6 +69,52 @@ auto MarkPriceCreation = [](simdjson::padded_string& json, simdjson::ondemand::p
     return out;
 };  
 
+// Check userDataStreamClass.hpp for request payloads and implementation functions
+auto UserDataStreamClassCreation = [](simdjson::padded_string& json, simdjson::ondemand::parser& parser) {
+    auto doc = parser.iterate(json);
+    std::string type;
+    doc["e"].get_string(type);
+    EventType eventType = returnEventType(type);
+    UserDataStream* userDataStream;
+    switch (eventType) {
+        case EventType::ACCOUNT_UPDATE:
+            accountUpdate(doc,userDataStream);
+            break;
+
+        case EventType::MARGIN_CALL:
+            marginCallUpdate(doc,userDataStream);
+            break;
+
+        case EventType::ORDER_UPDATE:
+            orderUpdate(doc,userDataStream);
+            break;
+
+        case EventType::TRADE_LITE:
+            trade_lite(doc);
+            break;
+
+        case EventType::ACCOUNT_CONFIG_UPDATE:
+            account_config_update(doc);
+            break;
+
+        case EventType::STRATEGY_UPDATE:
+            strategy_update(doc);
+            break;
+
+        case EventType::GRID_UPDATE:
+            grid_update(doc);
+            break;
+
+        case EventType::CONDITIONAL_ORDER_REJECT:
+            conditional_order_reject(doc);
+            break;
+
+        default:
+            // Unknown or unsupported event
+            std::cerr << "⚠️ Unknown event type received in user data stream.\n";
+            break;
+    }
+};
 
 class APIManager {
 
@@ -152,7 +200,6 @@ class APIManager {
             }
         }
         SpotAPI(APIManager& base_) : spot(base_.ioc,base_.ctx,base_.hostSpot) {
-
         }
     };
 
@@ -225,7 +272,6 @@ class APIManager {
         }
 
         FuturesAPI(APIManager& base_) : futures(base_.ioc,base_.ctx,base_.hostFutures){
-
         }
 
     };
@@ -244,7 +290,6 @@ class APIManager {
                 }
 
                 TradeEventStream(APIManager& base_, std::string pair_) : pair(pair_), tradeEventStream(base_.ioc,base_.ctx,TradeEventCreation,base_.hostFuturesWebsocket,target,base_.websocketParser) {
-                    std::cout << target << std::endl;
                 }
             };
 
@@ -274,7 +319,8 @@ class APIManager {
     class UserDataStreams {
         public:
         class UserFuturesStream {
-            StreamHolder userDataStream;
+            StreamHolder userDataStreamAPI;
+            WebsocketStreamHolder<UserDataStream,decltype(UserDataStreamClassCreation)>* userDataStreamWebsocket = nullptr;
             std::string APIKey;
             std::string listenKey;
             simdjson::ondemand::parser parser;
@@ -289,34 +335,39 @@ class APIManager {
             public:
             void getListenKey() {
                 std::string target = "/fapi/v1/listenKey";
-                auto json = userDataStream.sendRequest(target,http::verb::post,true,listenKeyParameter);
+                auto json = userDataStreamAPI.sendRequest(target,http::verb::post,true,false,listenKeyParameter);
                 auto doc = parser.iterate(json);
                 doc.find_field("listenKey").get_string(listenKey,true);
             }
 
             void deleteListenKey() {
                 std::string target = "/fapi/v1/listenKey";
-                auto json = userDataStream.sendRequest(target,http::verb::delete_,true,listenKeyParameter);
+                auto json = userDataStreamAPI.sendRequest(target,http::verb::delete_,true,false,listenKeyParameter);
             }
 
-            void startUserDataStream() {
-                std::string target = "";
-                auto json = userDataStream.sendRequest(target,http::verb::post,true,requestId,parameters);
-            }
-
-            UserFuturesStream(APIManager& base_) : userDataStream(base_.ioc,base_.ctx,base_.hostFutures),
+            UserFuturesStream(APIManager& base_) : userDataStreamAPI(base_.ioc,base_.ctx,base_.hostFutures),
                 APIKey(base_.APIKey),
                 listenKeyParameter("X-MBX-APIKEY",base_.APIKey), 
                 requestId("X-Request-ID", boost::uuids::to_string(boost::uuids::random_generator()())),
                 method("method", "userDataStream.start"),
                 parameters("parameters")
                 {
-                getListenKey();
-                parameters.makeRequestFromRequestParameters("apikey", APIKey);
+                    getListenKey();
+                    std::string websocketTarget = "/ws/" + listenKey;
+                    userDataStreamWebsocket = new WebsocketStreamHolder<UserDataStream,decltype(UserDataStreamClassCreation)>(
+                        base_.ioc,
+                        base_.ctx,
+                        UserDataStreamClassCreation,
+                        base_.hostFuturesWebsocket,
+                        websocketTarget,
+                        base_.websocketParser);
+                    
+                    parameters.makeRequestFromRequestParameters(StreamHolder::RequestParameter<std::string>("apikey",APIKey));
             }
 
             ~UserFuturesStream() {
                 deleteListenKey();
+                delete userDataStreamWebsocket;
             }
         };
 
@@ -335,11 +386,9 @@ class APIManager {
             public:
             void getListenKey() {
                 std::string target = "/fapi/v1/listenKey";
-                auto json = userDataStream.sendRequest(target,http::verb::post,true,listenKeyParameter);
-                std::cout << json << std::endl;
+                auto json = userDataStream.sendRequest(target,http::verb::post,true,false,listenKeyParameter);
                 auto doc = parser.iterate(json);
                 doc.find_field("listenKey").get_string(listenKey,true);
-                std::cout << listenKey << std::endl;
             }
 
             UserSpotStream(APIManager& base_) : userDataStream(base_.ioc,base_.ctx,base_.hostFutures), APIKey(base_.APIKey),listenKeyParameter("X-MBX-APIKEY",base_.APIKey){
@@ -353,7 +402,7 @@ class APIManager {
     ioc(ioc_), ctx(ctx_) {
         APIKey = std::getenv("API_KEY");
         
-    }
+    };
 
 
 };
