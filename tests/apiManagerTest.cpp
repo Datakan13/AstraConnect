@@ -14,7 +14,7 @@ int main() {
     APIManager::SpotAPI spotAPI(manager);
     APIManager::WebsocketStreams::Futures::TradeEventStream tradeEventStream(manager , "btcusdt");
 
-    APIManager::UserDataStreams::UserFuturesStream userFuturesAPI(manager);
+    APIManager::UserDataStreams::UserFuturesStream userDataStreamFuturesAPI(manager);
 
     timer.start();
     spotAPI.fetchCandles(vec,"BTCUSDT","5m");
@@ -76,4 +76,7 @@ int main() {
           << ", maker: " << std::boolalpha << event2.maker
           << std::endl;
 
+    UserDataStream userData = userDataStreamFuturesAPI.getLastMessage();
+    auto userptr = userData.returnPtr();
+    if(!userptr) std::cout << "no message recieved" << std::endl;
 }

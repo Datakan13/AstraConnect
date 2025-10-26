@@ -145,3 +145,48 @@ inline ExpireReason returnExpireReason(int reason) {
             throw std::invalid_argument("Unknown ExpireReason code: " + std::to_string(reason));
     }
 }
+
+inline StrategyType returnStrategyType(const std::string& type) {
+    if (type == "STOP") return StrategyType::STOP;
+    if (type == "TAKE_PROFIT") return StrategyType::TAKE_PROFIT;
+    if (type == "STOP_MARKET") return StrategyType::STOP_MARKET;
+    if (type == "TAKE_PROFIT_MARKET") return StrategyType::TAKE_PROFIT_MARKET;
+    if (type == "TRAILING_STOP_MARKET") return StrategyType::TRAILING_STOP_MARKET;
+    if (type == "GRID") return StrategyType::GRID;
+    if (type == "TWAP") return StrategyType::TWAP;
+    if (type == "VP") return StrategyType::VP;
+    if (type == "SIGNAL") return StrategyType::SIGNAL;
+    if (type == "CUSTOM") return StrategyType::CUSTOM;
+    throw std::invalid_argument("Unknown StrategyType string: " + type);
+}
+
+inline StrategyStatus returnStrategyStatus(const std::string& status) {
+    if (status == "NEW") return StrategyStatus::NEW;
+    if (status == "WORKING") return StrategyStatus::WORKING;
+    if (status == "CANCELED") return StrategyStatus::CANCELED;
+    if (status == "EXPIRED") return StrategyStatus::EXPIRED;
+
+    throw std::invalid_argument("Unknown StrategyStatus string: " + status);
+}
+
+inline OpCode returnOpCode(int code) {
+    switch (code) {
+        case 8001: return OpCode::UPDATED;
+        case 8002: return OpCode::CANCELED;
+        case 8003: return OpCode::PLACED_OR_CANCELED;
+        case 8004: return OpCode::STOP_REACHED;
+        case 8005: return OpCode::LIQUIDATED;
+        case 8006: return OpCode::MAX_ORDER_REACHED;
+        case 8007: return OpCode::NEW_GRID_ORDER;
+        case 8008: return OpCode::MARGIN_NOT_ENOUGH;
+        case 8009: return OpCode::PRICE_OUT_OF_BOUNDS;
+        case 8010: return OpCode::MARKET_CLOSED_OR_PAUSED;
+        case 8011: return OpCode::CLOSE_FAILED;
+        case 8012: return OpCode::MAX_NOTITIONAL_VALUE_EXCEEDED;
+        case 8013: return OpCode::GRID_EXPIRED_KYC_OR_RESTRICTED;
+        case 8014: return OpCode::RULES_VIOLATED_STOPPED;
+        case 8015: return OpCode::POSITION_EMPTY_OR_LIQUIDATED;
+        default:
+            throw std::invalid_argument("Unknown OpCode: " + std::to_string(code));
+    }
+}

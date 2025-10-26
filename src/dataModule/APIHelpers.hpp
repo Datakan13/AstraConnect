@@ -39,7 +39,7 @@ class StreamHolder {
 
     public:
     template<typename... Args>
-        std::string makeRequestFromRequestParameters(Args&&... requestParameters) {
+    std::string makeRequestFromRequestParameters(Args&&... requestParameters) {
 
            if (((!requestParameters.requestField.empty() && !requestParameters.request.empty()) && ...)) {
                 std::string json = "{";
@@ -124,11 +124,10 @@ class StreamHolder {
     }
     
 
-    // Use
     template<typename... Args>
     auto sendRequest(const std::string& target, http::verb method = http::verb::get,
-         bool keepAlive = true, bool needBody = false,
-         RequestParameter<Args>... requestParameters) {
+        bool keepAlive = true, bool needBody = false,
+        RequestParameter<Args>... requestParameters) {
 
         AstraLib::Atomic::SpinlockGuard guard(lock);
         http::request<http::string_body> req{method, target, version};
@@ -141,7 +140,6 @@ class StreamHolder {
 
         if(needBody) {
             std::string test = makeRequestFromRequestParameters(std::forward<RequestParameter<Args>>(requestParameters)...);
-            std::cout << test << std::endl;
             req.body() = test;
             req.prepare_payload();
         } else {
@@ -150,7 +148,6 @@ class StreamHolder {
        
         
         
-        std::cout << req << std::endl;
         http::write(stream, req);
         http::read(stream, buffer, res);
         auto json = simdjson::padded_string(
@@ -175,17 +172,18 @@ class StreamHolder {
 //e.g. [simdjson::padded_string json](){  TradeEvent event = json; return event; }
 template<typename Data,typename Func>
 class WebsocketStreamHolder {
-    net::io_context& ioc;
-    net::ssl::context& ctx;
+    net::io_context ioc;
+    net::ssl::context ctx;
     tcp::resolver resolver;
     std::string target;
     std::string host;
     std::string port = "443";
     beast::websocket::stream<ssl::stream<tcp::socket>> ws;
+    AstraLib::Atomic::PaddedAtomic<bool> running = true;
     beast::flat_buffer buffer;
     Func func;
     ThreadSafeParser& parserWrapper;
-
+    std::thread thread;
     void setupConnection() {
         try {
             auto const results = resolver.resolve(host, port);
@@ -212,7 +210,12 @@ class WebsocketStreamHolder {
     }
 
     public:
+    // A variable that becomes true when a Data has been queued 
+    // No release mechanism for making it false it is user's responsibility to release
+    AstraLib::Atomic::PaddedAtomic<bool> controlVariable = false;
+
     AstraLib::Buffers::AtomicRingBuffer<Data,1024> bufferOut;
+
     auto getLatestMessage() {
         try {
             ws.read(buffer);
@@ -232,24 +235,28 @@ class WebsocketStreamHolder {
     void executionLoop() {
         setupConnection();
         Data data;
-        for(;;) {
+        while(running.value.load(std::memory_order_acquire)) {
             auto json = getLatestMessage();
             ThreadSafeParserRAII parser(parserWrapper);
 
             data = func(json,parser.parser);
             bufferOut.noMoveEnqueue(data);
+            controlVariable.value.store(true,std::memory_order_release);
         }
     }
 
-    WebsocketStreamHolder(net::io_context& ioc_, net::ssl::context& ctx_, 
-    Func func_, 
+    WebsocketStreamHolder(Func func_, 
     std::string host_, std::string target_,ThreadSafeParser& parser_) : 
-    resolver(ioc_), ws(ioc_,ctx_),
+    resolver(ioc), ws(ioc,ctx),
     target(target_) ,host(host_), 
-    ioc(ioc_), ctx(ctx_), parserWrapper(parser_), 
-    func(std::move(func_)) {
-        std::thread thread(&WebsocketStreamHolder::executionLoop,this);
-        thread.detach();
+    ctx(boost::asio::ssl::context::sslv23), parserWrapper(parser_), 
+    func(std::move(func_)), thread(&WebsocketStreamHolder::executionLoop,this) {        
+    
+    }
+
+    ~WebsocketStreamHolder() {
+        running.value.store(false, std::memory_order_release);
+        thread.join();
     }
 };
 

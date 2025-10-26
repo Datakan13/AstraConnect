@@ -3,6 +3,8 @@
 #include <vector>
 #include "helperClassesUserDataStreamClass.hpp"
 #include "userDataStreamHelperFunctions.hpp"
+#include "simdjson.h"
+
 /*
 Payload example for account update 
 {
@@ -70,7 +72,7 @@ class AccountUpdate {
     std::vector<AssetBalance> assets;
     std::vector<PositionBalance> positions;
 
-    inline void parseFields(simdjson::fallback::ondemand::document_stream::iterator::value_type& doc) {
+    inline void parseFields(simdjson::ondemand::document& doc) {
         std::string eventType_;
         auto obj = doc["a"].get_object().value();
         obj["m"].get_string(eventType_);
@@ -104,7 +106,7 @@ class AccountUpdate {
 
     }
     
-    AccountUpdate(simdjson::fallback::ondemand::document_stream::iterator::value_type& doc) {
+    AccountUpdate(simdjson::ondemand::document& doc) {
         parseFields(doc);
     };
 };
@@ -133,7 +135,7 @@ class MarginCall {
     double crossWalletBalance;
     std::vector<MarginCallPosition> positions;
 
-    void parseFields(simdjson::fallback::ondemand::document_stream::iterator::value_type& doc) {
+    void parseFields(simdjson::ondemand::document& doc) {
         crossWalletBalance = doc["cw"].get_double_in_string().value();
         MarginCallPosition position;
         std::string positionSide;
@@ -153,7 +155,7 @@ class MarginCall {
             positions.push_back(position);
         }
     }
-    MarginCall(simdjson::fallback::ondemand::document_stream::iterator::value_type& doc) {
+    MarginCall(simdjson::ondemand::document& doc) {
         parseFields(doc);
     }
 };
@@ -213,7 +215,7 @@ class OrderUpdate {
     std::string pair;
     std::string clientID;
     double originalQuantity;
-    double originalPrice = 0;   // price requested on limit orders 0 for market
+    double originalPrice;   // price requested on limit orders 0 for market
     double averagePrice;        // average price of executed fills 
     double stopPrice;
     int64_t orderID;
@@ -239,13 +241,13 @@ class OrderUpdate {
     PriceMatchMode priceMatchMode;
     ExpireReason expireReason;
     bool closeAll;
-    double activationPrice;
-    double callBackRate;
+    double activationPrice = 0;
+    double callBackRate = 0;
     bool priceProtection;
     double realizedProfit;
     int64_t GTDExprationTimestamp;
 
-    void parseFields(simdjson::fallback::ondemand::document_stream::iterator::value_type& doc) {
+    void parseFields(simdjson::ondemand::document& doc) {
         auto obj = doc["o"].get_object().value();
         obj["s"].get_string(pair);
         obj["c"].get_string(clientID);
@@ -297,7 +299,7 @@ class OrderUpdate {
 
     }   
 
-    OrderUpdate(simdjson::fallback::ondemand::document_stream::iterator::value_type& doc) {
+    OrderUpdate(simdjson::ondemand::document& doc) {
         parseFields(doc);
     }
 };
@@ -324,8 +326,9 @@ payload example for trade lite
 }
 */
 class TradeLite {
+    public:
     int64_t tradeTimestamp;
-    int64_t clientID;
+    std::string clientID;
     std::string pair;
     double originalQuantity;
     double originalPrice;
@@ -335,6 +338,22 @@ class TradeLite {
     double lastFilledQuantity;
     int64_t tradeID;
     int64_t orderID;
+
+    TradeLite(simdjson::ondemand::document& doc) {
+        std::string intermediateString;
+        tradeTimestamp = doc["T"].get_int64().value();
+        doc["s"].get_string(pair);
+        originalQuantity = doc["q"].get_double_in_string().value();
+        originalPrice = doc["p"].get_double_in_string().value();
+        maker = doc["m"].get_bool().value();
+        doc["c"].get_string(clientID);
+        doc["S"].get_string(intermediateString);
+        orderSide = returnOrderSide(intermediateString);
+        lastFilledPrice = doc["L"].get_double_in_string().value();
+        lastFilledQuantity = doc["l"].get_double_in_string().value();
+        tradeID = doc["t"].get_int64().value();
+        orderID = doc["i"].get_int64().value();
+    }
 };
 /*
 payload example for account configuration update
@@ -362,10 +381,24 @@ second:
 
 */
 class AccountConfigUpdate {
+    public:
     int64_t timestamp;
-    std::string pair;
-    int64_t leverage;
-    bool multiAssetMode;
+    std::string pair = "";
+    int64_t leverage = 0;
+    bool multiAssetMode = false;
+
+    AccountConfigUpdate(simdjson::ondemand::document& doc) {
+        timestamp = doc["T"].get_int64().value();
+        auto testIfLeverage = doc["ac"];
+        if(testIfLeverage.error() != simdjson::NO_SUCH_FIELD){
+            auto obj = testIfLeverage.get_object().value();
+            obj["s"].get_string(pair);
+            leverage = obj["l"].get_int64().value();
+        } else {
+            auto obj = doc["ai"].get_object().value();
+            multiAssetMode = obj["j"].get_bool().value();
+        }
+    }
 };
 /*
 payload example for strategy update
@@ -384,12 +417,28 @@ payload example for strategy update
 }
 */
 class StrategyUpdate {
+    public:
     int64_t timestamp;
     std::string pair;
+    int64_t strategyID;
     StrategyType strategyType;
     StrategyStatus strategyStatus;
     int64_t updateTimestamp;
     OpCode opCode;
+
+    StrategyUpdate(simdjson::ondemand::document& doc) {
+        std::string intermediateString;
+        timestamp = doc["T"].get_int64().value();
+        auto obj = doc["su"].get_object().value();
+        strategyID = obj["si"].get_int64().value();
+        doc["st"].get_string(intermediateString);
+        strategyType = returnStrategyType(intermediateString);
+        doc["ss"].get_string(intermediateString);
+        strategyStatus = returnStrategyStatus(intermediateString);
+        doc["s"].get_string(pair);
+        updateTimestamp = doc["ut"].get_int64().value();
+        opCode = returnOpCode(doc["c"].get_int64().value());
+    }
 };
 /*
 payload example for grid update
@@ -412,6 +461,7 @@ payload example for grid update
 }
 */
 class GridUpdate {
+    public:
     int64_t timestamp;
     int64_t strategyID;
     StrategyType strategyType;
@@ -423,6 +473,24 @@ class GridUpdate {
     double unmatchedFee;
     double matchedPNL;
     int64_t updateTimestamp;
+
+    GridUpdate(simdjson::ondemand::document& doc) {
+        timestamp = doc["T"].get_int64().value();
+        auto obj = doc["gu"].get_object().value();
+        strategyID = obj["si"].get_int64().value();
+        std::string intermediateString;
+        obj["st"].get_string(intermediateString);
+        strategyType = returnStrategyType(intermediateString);
+        obj["ss"].get_string(intermediateString);
+        strategyStatus = returnStrategyStatus(intermediateString);
+        obj["s"].get_string(pair);
+        realizedPNL = obj["r"].get_double_in_string().value();
+        unmatchedAveragePrice = obj["up"].get_double_in_string().value();
+        unmatchedQuantity = obj["uq"].get_double_in_string().value();
+        unmatchedFee = obj["uf"].get_double_in_string().value();
+        matchedPNL = obj["mp"].get_double_in_string().value();
+        updateTimestamp = obj["ut"].get_int64().value();
+    }
 };
 /*
 payload example for Conditional order rejection
@@ -438,10 +506,19 @@ payload example for Conditional order rejection
 }  
 */
 class ConditionalOrderReject {
+    public:
     int64_t timestamp;
     std::string pair;
     int64_t orderID;
     std::string rejectReason;
+
+    ConditionalOrderReject(simdjson::ondemand::document& doc) {
+        timestamp = doc["T"].get_int64().value();
+        auto obj = doc["or"].get_object().value();
+        obj["s"].get_string(pair);
+        orderID = obj["i"].get_int64().value();
+        obj["r"].get_string(rejectReason);
+    }
 };
 
 class PTRWrapper {
@@ -459,10 +536,11 @@ class PTRWrapper {
 class UserDataStream {
     EventType event;
     int64_t timestamp;
-    PTRWrapper* ptrWrapper;
+    PTRWrapper* ptrWrapper = nullptr;
 
 public:
     auto returnPtr() const -> void* {
+        if(!ptrWrapper) return nullptr;
         switch (event) {
             case EventType::ACCOUNT_UPDATE:        return ptrWrapper->accountUpdate;
             case EventType::MARGIN_CALL:           return ptrWrapper->marginCall;
@@ -526,9 +604,14 @@ public:
 
     // Constructor for basic or generic events with no payload
     UserDataStream(EventType event_, int64_t timestamp_)
-        : event(event_), timestamp(timestamp_) {}
+        : event(event_), timestamp(timestamp_),ptrWrapper(new PTRWrapper()) {}
+
+    UserDataStream() {
+
+    }
 
     ~UserDataStream() {
+        if(!ptrWrapper) return;
         delete ptrWrapper->accountUpdate;
         delete ptrWrapper->marginCall;
         delete ptrWrapper->orderUpdate;

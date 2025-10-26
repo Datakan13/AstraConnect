@@ -20,7 +20,6 @@ add_executable(apiTest ${CMAKE_SOURCE_DIR}/tests/apiManagerTest.cpp ${CMAKE_SOUR
 target_include_directories( apiTest PRIVATE
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/include/simdjson
-    
 )
 
 target_link_libraries(apiTest PRIVATE
