@@ -1,8 +1,9 @@
 #pragma once
-#include "userDataStreanClass.hpp"
+#include "userDataStreamClass.hpp"
 #include "helperClassesUserDataStreamClass.hpp"
 #include <simdjson.h>
 #include "userDataStreamHelperFunctions.hpp"
+#include <type_traits>
 
 void accountUpdate(simdjson::ondemand::document& doc , UserDataStream*& stream) {
   stream = new UserDataStream(EventType::ACCOUNT_UPDATE,
@@ -172,5 +173,70 @@ void castUserDataStreamptr(void* ptr, ConditionalOrderReject& out) {
   out.pair = cast->pair;
   out.rejectReason = cast->rejectReason;
   out.timestamp = cast->timestamp;
+}
+
+template<typename Data>
+Data getUserDataStreamData(void* ptr, EventType type) {
+    if(!ptr) return Data{};
+
+    if constexpr (std::is_same_v<Data, AccountUpdate>) {
+        if (type == EventType::ACCOUNT_UPDATE) {
+            AccountUpdate out;
+            castUserDataStreamptr(ptr, out);
+            return out;
+        }
+
+    } else if constexpr (std::is_same_v<Data, MarginCall>) {
+        if (type == EventType::MARGIN_CALL) {
+            MarginCall out;
+            castUserDataStreamptr(ptr, out);
+            return out;
+        }
+
+    } else if constexpr (std::is_same_v<Data, OrderUpdate>) {
+        if (type == EventType::ORDER_UPDATE) {
+            OrderUpdate out;
+            castUserDataStreamptr(ptr, out);
+            return out;
+        }
+
+    } else if constexpr (std::is_same_v<Data, TradeLite>) {
+        if (type == EventType::TRADE_LITE) {
+            TradeLite out;
+            castUserDataStreamptr(ptr, out);
+            return out;
+        }
+
+    } else if constexpr (std::is_same_v<Data, AccountConfigUpdate>) {
+        if (type == EventType::ACCOUNT_CONFIG_UPDATE) {
+            AccountConfigUpdate out;
+            castUserDataStreamptr(ptr, out);
+            return out;
+        }
+
+    } else if constexpr (std::is_same_v<Data, StrategyUpdate>) {
+        if (type == EventType::STRATEGY_UPDATE) {
+            StrategyUpdate out;
+            castUserDataStreamptr(ptr, out);
+            return out;
+        }
+
+    } else if constexpr (std::is_same_v<Data, GridUpdate>) {
+        if (type == EventType::GRID_UPDATE) {
+            GridUpdate out;
+            castUserDataStreamptr(ptr, out);
+            return out;
+        }
+
+    } else if constexpr (std::is_same_v<Data, ConditionalOrderReject>) {
+        if (type == EventType::CONDITIONAL_ORDER_REJECT) {
+            ConditionalOrderReject out;
+            castUserDataStreamptr(ptr, out);
+            return out;
+        }
+    }
+
+    // Default case — type didn’t match Data
+    return Data{};
 }
 

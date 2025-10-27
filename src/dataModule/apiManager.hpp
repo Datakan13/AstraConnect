@@ -8,12 +8,14 @@
 #include "threadSafeParser.hpp"
 #include "tradeEvent.hpp"
 #include "markPrice.hpp"
-#include "userDataStream/userDataStreanClass.hpp"
+#include "userDataStream/userDataStreamClass.hpp"
 #include "userDataStream/userDataStreamFunctions.hpp"
 #include <utility>
-#include <AstraLib/Buffers/atomicRingBuffer.hpp>
+#include <AstraLib/AstraLib.hpp>
 #include <iostream>
 #include <fstream>
+#include "requestParameter.hpp"
+
 /*
     Payload example for trade event stream
     Update rate: Event based
@@ -123,7 +125,9 @@ class APIManager {
     const std::string hostSpot = "api.binance.com";
     const std::string hostFutures = "fapi.binance.com";
     const std::string hostFuturesWebsocket = "fstream.binance.com";
+    const std::string hostFuturesWebsocketAPI = "ws-fapi.binance.com";
     std::string APIKey;
+    std::string PrivateKey;
     boost::asio::io_context& ioc;
     boost::asio::ssl::context& ctx;
 
@@ -326,10 +330,10 @@ class APIManager {
             std::string APIKey;
             std::string listenKey;
             simdjson::ondemand::parser parser;
-            StreamHolder::RequestParameter<std::string> listenKeyParameter;
-            StreamHolder::RequestParameter<std::string> requestId;
-            StreamHolder::RequestParameter<std::string> method;
-            StreamHolder::RequestParameter<std::string> parameters;
+            RequestParameter<std::string> listenKeyParameter;
+            RequestParameter<std::string> requestId;
+            RequestParameter<std::string> method;
+            RequestParameter<std::string> parameters;
             AstraLib::Atomic::PaddedAtomic<bool> messagePresent;
             /*  
                 Payload example for listen key 
@@ -379,12 +383,13 @@ class APIManager {
             }
         };
        
+        // do not use
         class UserSpotStream {
             StreamHolder userDataStream;
             std::string APIKey;
             std::string listenKey;
             simdjson::ondemand::parser parser;
-            StreamHolder::RequestParameter<std::string> listenKeyParameter;
+            RequestParameter<std::string> listenKeyParameter;
 
              /*
                 Payload example for listen key 
@@ -402,13 +407,129 @@ class APIManager {
                 
             }
         };
-    };
+        };
+
+        class PlaceOrderParameters {
+            public:
+            RequestParameter<std::string> positionSide;
+            RequestParameter<std::string> price;
+            RequestParameter<std::string> quantity;
+            RequestParameter<std::string> side;
+            RequestParameter<std::string> symbol;
+            RequestParameter<std::string> timeInForce;
+            RequestParameter<std::string> timestamp;
+            RequestParameter<std::string> type;
+
+            void prepareOrder(PositionSide posSide,
+                  OrderSide orderSide,
+                  TimeInForce tif,
+                  OrderType orderType,
+                  const std::string& pair,
+                  const std::string& px,
+                  const std::string& qty)
+            {
+                // Position side (BOTH, LONG, SHORT)
+                switch (posSide) {
+                    case PositionSide::BOTH:  positionSide.request = "BOTH"; break;
+                    case PositionSide::LONG:  positionSide.request = "LONG"; break;
+                    case PositionSide::SHORT: positionSide.request = "SHORT"; break;
+                }
+
+                // Side (BUY or SELL)
+                side.request = (orderSide == OrderSide::BUY) ? "BUY" : "SELL";
+
+                // Symbol
+                symbol.request = pair;
+
+                // Price & quantity
+                price.request    = px;
+                quantity.request = qty;
+
+                // Order type
+                switch (orderType) {
+                    case OrderType::LIMIT:                type.request = "LIMIT"; break;
+                    case OrderType::MARKET:               type.request = "MARKET"; break;
+                    case OrderType::STOP:                 type.request = "STOP"; break;
+                    case OrderType::STOP_MARKET:          type.request = "STOP_MARKET"; break;
+                    case OrderType::TAKE_PROFIT:          type.request = "TAKE_PROFIT"; break;
+                    case OrderType::TAKE_PROFIT_MARKET:   type.request = "TAKE_PROFIT_MARKET"; break;
+                    case OrderType::TRAILING_STOP_MARKET: type.request = "TRAILING_STOP_MARKET"; break;
+                    case OrderType::LIQUIDATION:          type.request = "LIQUIDATION"; break;
+                }
+
+                // Time in force
+                switch (tif) {
+                    case TimeInForce::GTC: timeInForce.request = "GTC"; break;
+                    case TimeInForce::IOC: timeInForce.request = "IOC"; break;
+                    case TimeInForce::FOK: timeInForce.request = "FOK"; break;
+                    case TimeInForce::GTX: timeInForce.request = "GTX"; break;
+                }
+
+                // Timestamp (milliseconds)
+                timestamp.request = std::to_string(AstraLib::Time::unixTimestampMS());
+            }
+
+            PlaceOrderParameters() : positionSide("positionSide"), 
+            price("price"), quantity("quantity"), 
+            side("side"), symbol("symbol"), 
+            timeInForce("timeInForce"), timestamp("timestamp"),
+            type("type") {
+
+            }
+        };
+
+        class OrderStream {
+            WebsocketAPIStreamHolder orderStream;
+            std::string target = "/ws-fapi/v1";
+            RequestParameter<std::string> APIKey;
+            RequestParameter<std::string> HMACKey;
+            std::string privateKey;
+            PlaceOrderParameters placeOrder;
+            RequestParameter<std::string> methodPlaceOrder;
+            RequestParameter<std::string> requestId;
+            RequestParameter<std::string> generateParamsForOrder(PositionSide posSide,
+                  OrderSide orderSide,
+                  TimeInForce tif,
+                  OrderType orderType,
+                  const std::string& pair,
+                  const std::string& px,
+                  const std::string& qty) {
+                RequestParameter<std::string> out("params");
+                
+                placeOrder.prepareOrder(posSide,orderSide,tif,orderType,pair,px,qty);
+
+                out.makeRequestFromRequestParameters(
+                    APIKey,
+                    placeOrder.positionSide,
+                    placeOrder.price,
+                    placeOrder.quantity,
+                    placeOrder.side,
+                    placeOrder.symbol,
+                    placeOrder.timeInForce,
+                    placeOrder.timestamp,
+                    placeOrder.type  
+                );
+                HMACKey.request = hmac_sha256(privateKey,out.request);
+                out.addParameterToRequest(HMACKey);
+                return out;
+            }
+
+            void generateID() {
+                requestId.request = boost::uuids::to_string(boost::uuids::random_generator()());
+            }
+            
+            OrderStream(APIManager& base_) : orderStream(base_.hostFuturesWebsocketAPI, target),
+            privateKey(base_.PrivateKey), APIKey("apiKey",base_.APIKey), HMACKey("signature"),
+            methodPlaceOrder("method","order.place"), requestId("id"){
+
+            }
+        };
 
     public:
     APIManager(boost::asio::io_context& ioc_, boost::asio::ssl::context& ctx_) :
     ioc(ioc_), ctx(ctx_) {
         APIKey = std::getenv("API_KEY");
-        
+        PrivateKey = std::getenv("PRIVATE_KEY");
     };
 
 

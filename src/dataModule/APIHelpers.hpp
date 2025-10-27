@@ -5,6 +5,32 @@
 #include <bitset>
 #include <AstraLib/AstraLib.hpp>
 #include <type_traits>
+#include <openssl/hmac.h>
+#include "requestParameter.hpp"
+
+inline std::string hmac_sha256(const std::string& key, const std::string& data) {
+    unsigned char digest[EVP_MAX_MD_SIZE];
+    unsigned int len = 0;
+
+    HMAC(EVP_sha256(),
+         key.data(), static_cast<int>(key.size()),
+         reinterpret_cast<const unsigned char*>(data.data()), data.size(),
+         digest, &len);
+
+    static constexpr char hexmap[] = "0123456789abcdef";
+    std::string out;
+    out.resize(len * 2);
+
+    for (unsigned int i = 0; i < len; ++i) {
+        unsigned char c = digest[i];
+        out[2 * i]     = hexmap[c >> 4];
+        out[2 * i + 1] = hexmap[c & 0xF];
+    }
+    return out;
+}
+
+
+
 class StreamHolder {
     net::io_context& ioc;
     net::ssl::context& ctx;
@@ -38,69 +64,6 @@ class StreamHolder {
     }
 
     public:
-    template<typename... Args>
-    std::string makeRequestFromRequestParameters(Args&&... requestParameters) {
-
-           if (((!requestParameters.requestField.empty() && !requestParameters.request.empty()) && ...)) {
-                std::string json = "{";
-                bool first = true;
-
-                // Expand the pack and concatenate results
-                (([&] {
-                    if (!first) json += ", ";
-                    else first = false;
-                    if(requestParameters.isConstructed) {
-                        json += "\"" + requestParameters.requestField + "\": " + requestParameters.request;
-                    } else {
-                        json += "\"" + requestParameters.requestField + "\": \"" + requestParameters.request + "\"";
-                    }
-                }()), ...);
-
-                json += "}";
-                return json;
-            } else {
-                return "";
-            }
-
-            
-    }
-    
-    template<typename T>
-    class RequestParameter {
-        public:
-        T requestField = "";
-        std::string request = "";
-        bool isConstructed = false;
-        template<typename... Args>
-        void makeRequestFromRequestParameters(Args&&... requestParameters) {
-
-           if (((!requestParameters.requestField.empty() && !requestParameters.request.empty()) && ...)) {
-                std::string json = "{";
-                bool first = true;
-
-                // Expand the pack and concatenate results
-                (([&] {
-                    if (!first) json += ", ";
-                    else first = false;
-                    json += "\"" + requestParameters.requestField + "\": \"" + requestParameters.request + "\"";
-                }()), ...);
-
-                json += "}";
-                request = json;
-                isConstructed = true;
-            }
-
-            
-        }
-
-        RequestParameter(T requestField_,std::string request_) : requestField(requestField_), request(request_) {
-
-        }
-
-        RequestParameter(T requestField_) : requestField(requestField_){
-
-        }
-    };
 
 
     //Returns a simdjson::padded_string that can be iterated
@@ -258,6 +221,58 @@ class WebsocketStreamHolder {
         running.value.store(false, std::memory_order_release);
         thread.join();
     }
+
 };
 
+class WebsocketAPIStreamHolder {
+    net::io_context ioc;
+    net::ssl::context ctx;
+    std::string host;
+    std::string target;
+    beast::websocket::stream<ssl::stream<tcp::socket>> ws;
+    tcp::resolver resolver;
+    std::string port = "443";
+    std::string APIKey;
+    std::string privateKey;
+    void setupConnection() {
+        try {
+            auto const results = resolver.resolve(host, port);
+            ctx.set_default_verify_paths();
+            net::connect(ws.next_layer().next_layer(), results.begin(), results.end());
 
+            // Set SNI Hostname (required by many TLS servers)
+            if(!SSL_set_tlsext_host_name(ws.next_layer().native_handle(), host.c_str())) {
+                beast::error_code ec{static_cast<int>(::ERR_get_error()),
+                                        net::error::get_ssl_category()};
+                throw beast::system_error{ec};
+            }
+
+            
+            // Perform the SSL handshake
+            ws.next_layer().handshake(ssl::stream_base::client);
+
+            // Now perform the WebSocket handshake
+            boost::beast::websocket::response_type response;
+            ws.handshake(response,host, target);
+        } catch(std::exception& e) {
+            std::cout << e.what() << std::endl;
+        }    
+    }
+
+    public:
+
+
+    void sendRequest(std::string& request) {
+        ws.write(request);
+
+    }
+
+    std::string getHMAC(std::string& data) {
+        return hmac_sha256(privateKey,data);
+    }
+
+    WebsocketAPIStreamHolder(std::string host_, std::string& target_) : host(host_), target(target_),  ctx((net::ssl::context::sslv23)), ws(ioc,ctx), resolver(ioc) {
+        APIKey = std::getenv("API_KEY");
+        privateKey = std::getenv("PRIVATE_KEY");
+    };
+};

@@ -79,4 +79,6 @@ int main() {
     UserDataStream userData = userDataStreamFuturesAPI.getLastMessage();
     auto userptr = userData.returnPtr();
     if(!userptr) std::cout << "no message recieved" << std::endl;
+
+    
 }

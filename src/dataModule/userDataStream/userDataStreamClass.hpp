@@ -339,7 +339,7 @@ class TradeLite {
     int64_t tradeID;
     int64_t orderID;
 
-    TradeLite(simdjson::ondemand::document& doc) {
+    void parseFields(simdjson::ondemand::document& doc) {
         std::string intermediateString;
         tradeTimestamp = doc["T"].get_int64().value();
         doc["s"].get_string(pair);
@@ -353,6 +353,10 @@ class TradeLite {
         lastFilledQuantity = doc["l"].get_double_in_string().value();
         tradeID = doc["t"].get_int64().value();
         orderID = doc["i"].get_int64().value();
+    }
+
+    TradeLite(simdjson::ondemand::document& doc) {
+        parseFields(doc);
     }
 };
 /*
@@ -387,7 +391,7 @@ class AccountConfigUpdate {
     int64_t leverage = 0;
     bool multiAssetMode = false;
 
-    AccountConfigUpdate(simdjson::ondemand::document& doc) {
+    void parseFields(simdjson::ondemand::document& doc) {
         timestamp = doc["T"].get_int64().value();
         auto testIfLeverage = doc["ac"];
         if(testIfLeverage.error() != simdjson::NO_SUCH_FIELD){
@@ -398,6 +402,10 @@ class AccountConfigUpdate {
             auto obj = doc["ai"].get_object().value();
             multiAssetMode = obj["j"].get_bool().value();
         }
+    }
+
+    AccountConfigUpdate(simdjson::ondemand::document& doc) {
+        parseFields(doc);
     }
 };
 /*
@@ -426,7 +434,7 @@ class StrategyUpdate {
     int64_t updateTimestamp;
     OpCode opCode;
 
-    StrategyUpdate(simdjson::ondemand::document& doc) {
+    void parseFields(simdjson::ondemand::document& doc) {
         std::string intermediateString;
         timestamp = doc["T"].get_int64().value();
         auto obj = doc["su"].get_object().value();
@@ -438,6 +446,10 @@ class StrategyUpdate {
         doc["s"].get_string(pair);
         updateTimestamp = doc["ut"].get_int64().value();
         opCode = returnOpCode(doc["c"].get_int64().value());
+    }
+
+    StrategyUpdate(simdjson::ondemand::document& doc) {
+        parseFields(doc);
     }
 };
 /*
@@ -474,7 +486,7 @@ class GridUpdate {
     double matchedPNL;
     int64_t updateTimestamp;
 
-    GridUpdate(simdjson::ondemand::document& doc) {
+    void parseFields(simdjson::ondemand::document& doc) {
         timestamp = doc["T"].get_int64().value();
         auto obj = doc["gu"].get_object().value();
         strategyID = obj["si"].get_int64().value();
@@ -490,6 +502,10 @@ class GridUpdate {
         unmatchedFee = obj["uf"].get_double_in_string().value();
         matchedPNL = obj["mp"].get_double_in_string().value();
         updateTimestamp = obj["ut"].get_int64().value();
+    }
+
+    GridUpdate(simdjson::ondemand::document& doc) {
+        parseFields(doc);
     }
 };
 /*
@@ -512,12 +528,16 @@ class ConditionalOrderReject {
     int64_t orderID;
     std::string rejectReason;
 
-    ConditionalOrderReject(simdjson::ondemand::document& doc) {
+    void parseFields(simdjson::ondemand::document& doc) {
         timestamp = doc["T"].get_int64().value();
         auto obj = doc["or"].get_object().value();
         obj["s"].get_string(pair);
         orderID = obj["i"].get_int64().value();
         obj["r"].get_string(rejectReason);
+    }
+
+    ConditionalOrderReject(simdjson::ondemand::document& doc) {
+        parseFields(doc);
     }
 };
 

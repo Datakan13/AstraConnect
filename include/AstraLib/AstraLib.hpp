@@ -19,5 +19,6 @@
 
 // Time
 #include <AstraLib/Time/timer.hpp>
+#include <AstraLib/Time/timeNow.hpp>
 
 #include <AstraLib/Logger/Logger.hpp>
