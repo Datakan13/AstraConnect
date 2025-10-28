@@ -1,8 +1,6 @@
 #pragma once
 #include "userDataStreamClass.hpp"
-#include "helperClassesUserDataStreamClass.hpp"
 #include <simdjson.h>
-#include "userDataStreamHelperFunctions.hpp"
 #include <type_traits>
 
 void accountUpdate(simdjson::ondemand::document& doc , UserDataStream*& stream) {

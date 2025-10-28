@@ -1,5 +1,5 @@
 #pragma once
-#include "helperClassesUserDataStreamClass.hpp"
+#include "enumClassesForAllStreams.hpp"
 #include <stdexcept>
 
 inline EventType returnEventType(const std::string& requested) {
@@ -189,4 +189,17 @@ inline OpCode returnOpCode(int code) {
         default:
             throw std::invalid_argument("Unknown OpCode: " + std::to_string(code));
     }
+}
+
+
+inline RateLimitType returnRateLimitType(const std::string& s) {
+    if (s == "ORDERS") return RateLimitType::ORDER;
+    if (s == "REQUEST_WEIGHT") return RateLimitType::REQUEST_WEIGHT;
+    return RateLimitType::UNKNOWN;
+}
+
+inline IntervalRateLimit returnIntervalRateLimit(const std::string& s) {
+    if (s == "SECOND") return IntervalRateLimit::SECOND;
+    if (s == "MINUTE") return IntervalRateLimit::MINUTE;
+    return IntervalRateLimit::UNKNOWN;
 }

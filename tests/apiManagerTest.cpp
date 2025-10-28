@@ -3,6 +3,7 @@
 #include "dataModule/openInterest.hpp"
 #include <vector>
 #include <AstraLib/AstraLib.hpp>
+#include "dataModule/enumClassesForAllStreams.hpp"
 int main() {
     boost::asio::io_context ioc;
     boost::asio::ssl::context ctx(boost::asio::ssl::context::sslv23);
@@ -16,6 +17,7 @@ int main() {
 
     APIManager::UserDataStreams::UserFuturesStream userDataStreamFuturesAPI(manager);
 
+    APIManager::OrderStream orderStream(manager);
     timer.start();
     spotAPI.fetchCandles(vec,"BTCUSDT","5m");
     timer.write("Fetched candles from spot API");
@@ -80,5 +82,7 @@ int main() {
     auto userptr = userData.returnPtr();
     if(!userptr) std::cout << "no message recieved" << std::endl;
 
-    
+    timer.start();
+    orderStream.sendNewOrder(PositionSide::LONG,OrderSide::SELL,TimeInForce::IOC,OrderType::LIMIT,"BTCUSDT",100000.32,0.2 );
+    timer.write("Took time for this order");
 }

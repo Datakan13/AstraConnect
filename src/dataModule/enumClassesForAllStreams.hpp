@@ -1,6 +1,25 @@
 #pragma once
 #include <string>
 
+enum class OrderTypeSent {
+    NEW,
+    MODIFY,
+    CANCEL,
+    NONE
+};
+
+enum class RateLimitType {
+    ORDER,
+    REQUEST_WEIGHT,
+    UNKNOWN
+};
+
+enum class IntervalRateLimit {
+    SECOND,
+    MINUTE,
+    UNKNOWN
+};
+
 enum class MarginType {
     ISOLATED,
     CROSS

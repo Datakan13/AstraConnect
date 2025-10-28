@@ -1,38 +1,8 @@
-#pragma once 
-#include <string>
+#pragma once
+#include "../enumClassesForAllStreams.hpp"
+#include "../helperFunctionsForEnumClasses.hpp"
 #include "simdjson.h"
-#include "userDataStream/helperClassesUserDataStreamClass.hpp"
-#include "userDataStream/userDataStreamHelperFunctions.hpp"
 #include <AstraLib/AstraLib.hpp>
-enum class OrderTypeSent {
-    NEW,
-    MODIFY,
-    CANCEL
-};
-
-enum class RateLimitType {
-    ORDER,
-    REQUEST_WEIGHT,
-    UNKNOWN
-};
-
-enum class IntervalRateLimit {
-    SECOND,
-    MINUTE,
-    UNKNOWN
-};
-
-inline RateLimitType returnRateLimitType(const std::string& s) {
-    if (s == "ORDERS") return RateLimitType::ORDER;
-    if (s == "REQUEST_WEIGHT") return RateLimitType::REQUEST_WEIGHT;
-    return RateLimitType::UNKNOWN;
-}
-
-inline IntervalRateLimit returnIntervalRateLimit(const std::string& s) {
-    if (s == "SECOND") return IntervalRateLimit::SECOND;
-    if (s == "MINUTE") return IntervalRateLimit::MINUTE;
-    return IntervalRateLimit::UNKNOWN;
-}
 
 class RateLimit {
     public:
@@ -69,7 +39,6 @@ class RateLimit {
     }
 };
 
-// acquire the lock first then access for dequeueing
 class RateLimitHolder {
     public:
     AstraLib::Buffers::AtomicRingBuffer<RateLimit,8> rateLimitBuffer;
@@ -250,7 +219,6 @@ public:
     }
 
 };
-
 
 /*
 payload example for order modify response
@@ -580,13 +548,40 @@ public:
     }
 };
 
+class OrderResponsePtrWrapper {
+    public:
+    OrderNewResponse* newOrder = nullptr;
+    OrderCancelResponse* cancelOrder = nullptr;
+    OrderModifyResponse* modifyOrder = nullptr;
 
-class Order {
-    std::string id;
-    OrderTypeSent type;
+    OrderResponsePtrWrapper(OrderTypeSent type,simdjson::ondemand::document& doc) {
+        switch(type) {
+            case OrderTypeSent::NEW:
+            newOrder = new OrderNewResponse(doc);
+            break;
 
-};
+            case OrderTypeSent::CANCEL:
+            cancelOrder = new OrderCancelResponse(doc);
+            break;
 
-class OrderTracker {
+            case OrderTypeSent::MODIFY:
+            modifyOrder = new OrderModifyResponse(doc);
+            break;
 
+            default:
+            break;
+        }
+    }
+
+    OrderResponsePtrWrapper(OrderResponsePtrWrapper& ref) {
+        ref.newOrder = newOrder;
+        ref.cancelOrder = cancelOrder;
+        ref.modifyOrder = modifyOrder;
+    }
+
+    ~OrderResponsePtrWrapper() {
+        delete newOrder;
+        delete cancelOrder;
+        delete modifyOrder;
+    }
 };

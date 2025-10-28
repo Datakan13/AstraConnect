@@ -15,6 +15,9 @@
 #include <iostream>
 #include <fstream>
 #include "requestParameter.hpp"
+#include "orderTracker/orderTracker.hpp"
+#include <charconv>
+
 
 /*
     Payload example for trade event stream
@@ -479,14 +482,16 @@ class APIManager {
         };
 
         class OrderStream {
-            WebsocketAPIStreamHolder orderStream;
             std::string target = "/ws-fapi/v1";
+            WebsocketAPIStreamHolder orderStream;
             RequestParameter<std::string> APIKey;
             RequestParameter<std::string> HMACKey;
             std::string privateKey;
             PlaceOrderParameters placeOrder;
             RequestParameter<std::string> methodPlaceOrder;
             RequestParameter<std::string> requestId;
+            OrderTracker orderTracker;
+
             RequestParameter<std::string> generateParamsForOrder(PositionSide posSide,
                   OrderSide orderSide,
                   TimeInForce tif,
@@ -497,7 +502,6 @@ class APIManager {
                 RequestParameter<std::string> out("params");
                 
                 placeOrder.prepareOrder(posSide,orderSide,tif,orderType,pair,px,qty);
-
                 out.makeRequestFromRequestParameters(
                     APIKey,
                     placeOrder.positionSide,
@@ -517,7 +521,42 @@ class APIManager {
             void generateID() {
                 requestId.request = boost::uuids::to_string(boost::uuids::random_generator()());
             }
-            
+            public:
+            bool sendNewOrder(PositionSide posSide,
+                  OrderSide orderSide,
+                  TimeInForce tif,
+                  OrderType orderType,
+                  const std::string& pair,
+                  double px,
+                  double qty) {
+                    try{
+                        generateID();
+                        std::string orderID = requestId.request;
+                        
+                        // Turn price and quantity to strings since generateParamsForOrder expects std::string
+                        char bufPx[32];
+                        char bufQty[32];
+                        auto [ptrPx, ec1] = std::to_chars(bufPx, bufPx + sizeof(bufPx), px, std::chars_format::fixed, 6);
+                        auto [ptrQty, ec2] = std::to_chars(bufQty, bufQty + sizeof(bufQty), qty, std::chars_format::fixed, 6);
+                        std::string pxStr(bufPx, ptrPx);
+                        std::string qtyStr(bufQty, ptrQty);
+
+                        RequestParameter<std::string> params = generateParamsForOrder(posSide,orderSide,tif,orderType,pair,pxStr,qtyStr);
+                        std::string payload = makeRequestFromRequestParameters(requestId,methodPlaceOrder,params);
+                        std::cout << payload << std::endl;
+                        orderStream.sendRequest(payload);
+
+                        orderTracker.registerOrderSent(orderID,AstraLib::Time::unixTimestampMS(),px, qty,pair,tif,orderSide,posSide,orderType);
+                        orderTracker.queueActiveOrderId(orderID);
+                        return true;
+                    } catch(std::exception& e ) {
+                        std::cout << "Soo error is here: "<< e.what() << std::endl;
+                        return false;
+                    }
+                    
+
+            }
+
             OrderStream(APIManager& base_) : orderStream(base_.hostFuturesWebsocketAPI, target),
             privateKey(base_.PrivateKey), APIKey("apiKey",base_.APIKey), HMACKey("signature"),
             methodPlaceOrder("method","order.place"), requestId("id"){

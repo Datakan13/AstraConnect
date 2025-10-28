@@ -20,7 +20,7 @@ class RequestParameter {
             (([&] {
                 if (!first) json += ", ";
                 else first = false;
-                if(requestParameters.isConstructed) {
+                if(requestParameters.isConstructed || requestParameters.requestField == "timestamp") {
                     json += "\"" + requestParameters.requestField + "\": " + requestParameters.request;
                 } else {
                     json += "\"" + requestParameters.requestField + "\": \"" + requestParameters.request + "\"";
@@ -39,7 +39,7 @@ class RequestParameter {
     void addParameterToRequest(RequestParameter<std::string>& param) {
         if (request.empty() || !(request.back() == '}')) return;
         request.pop_back();
-        request += std::string(", ") +"\"" + param.requestField + "\": " + param.request + "}"; 
+        request += std::string(", ") +"\"" + param.requestField + "\": \"" + param.request + "\"}"; 
     }
 
     RequestParameter(T requestField_,std::string request_) : requestField(requestField_), request(request_) {

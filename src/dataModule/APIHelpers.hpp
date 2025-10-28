@@ -8,9 +8,19 @@
 #include <openssl/hmac.h>
 #include "requestParameter.hpp"
 
-inline std::string hmac_sha256(const std::string& key, const std::string& data) {
+inline std::string hmac_sha256(const std::string& key, std::string data) {
     unsigned char digest[EVP_MAX_MD_SIZE];
     unsigned int len = 0;
+    data.erase(0,1);
+    data.pop_back();
+    for (auto& c : data) {
+    if (c == ',')  c = '&';
+    else if (c == ':') c = '=';
+    else if (c == '"') c = '\0';
+    else if (c == ' ') c = '\0';
+    }
+    data.erase(std::remove(data.begin(), data.end(), '\0'), data.end());
+    std::cout << "data: " << data << std::endl;
 
     HMAC(EVP_sha256(),
          key.data(), static_cast<int>(key.size()),
@@ -234,6 +244,8 @@ class WebsocketAPIStreamHolder {
     std::string port = "443";
     std::string APIKey;
     std::string privateKey;
+    std::thread* reader;
+    AstraLib::Atomic::PaddedAtomic<bool> running = true;
     void setupConnection() {
         try {
             auto const results = resolver.resolve(host, port);
@@ -250,21 +262,41 @@ class WebsocketAPIStreamHolder {
             
             // Perform the SSL handshake
             ws.next_layer().handshake(ssl::stream_base::client);
-
+            std::cout << "Setting up connection to: " << host << target << std::endl;
             // Now perform the WebSocket handshake
             boost::beast::websocket::response_type response;
             ws.handshake(response,host, target);
+            ws.text(true);
+            std::cout << response << std::endl;
         } catch(std::exception& e) {
             std::cout << e.what() << std::endl;
         }    
     }
 
+    void readLoop() {
+        boost::beast::flat_buffer buffer;
+        while (running.value.load(std::memory_order_acquire)) {
+            boost::system::error_code ec;
+            ws.read(buffer, ec);
+            if (ec) {
+                if (ec == boost::beast::websocket::error::closed) {
+                    std::cout << "[WebSocket closed]" << std::endl;
+                } else {
+                    std::cout << "[Read error] " << ec.message() << std::endl;
+                }
+                break;
+            }
+            std::cout << beast::buffers_to_string(buffer.data()) << std::endl;
+            buffer.consume(buffer.size());
+        }
+    }
+
+
     public:
 
 
     void sendRequest(std::string& request) {
-        ws.write(request);
-
+        ws.write(net::buffer(request));
     }
 
     std::string getHMAC(std::string& data) {
@@ -274,5 +306,13 @@ class WebsocketAPIStreamHolder {
     WebsocketAPIStreamHolder(std::string host_, std::string& target_) : host(host_), target(target_),  ctx((net::ssl::context::sslv23)), ws(ioc,ctx), resolver(ioc) {
         APIKey = std::getenv("API_KEY");
         privateKey = std::getenv("PRIVATE_KEY");
+        setupConnection();
+        reader = new std::thread([this]() { readLoop(); });
+
+    };
+
+    ~WebsocketAPIStreamHolder() {
+        running.value.store(false,std::memory_order_release);
+        reader->join();
     };
 };
