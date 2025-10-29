@@ -81,8 +81,9 @@ int main() {
     UserDataStream userData = userDataStreamFuturesAPI.getLastMessage();
     auto userptr = userData.returnPtr();
     if(!userptr) std::cout << "no message recieved" << std::endl;
-
+    std::string orderID;
     timer.start();
-    orderStream.sendNewOrder(PositionSide::LONG,OrderSide::SELL,TimeInForce::IOC,OrderType::LIMIT,"BTCUSDT",100000.32,0.2 );
+    orderStream.sendNewOrder(PositionSide::LONG,OrderSide::SELL,TimeInForce::IOC,OrderType::LIMIT,"BTCUSDT",100000.32,0.2,orderID);
     timer.write("Took time for this order");
+    
 }

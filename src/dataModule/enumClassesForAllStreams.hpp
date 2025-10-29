@@ -28,12 +28,14 @@ enum class MarginType {
 enum class PositionSide {
     BOTH,
     LONG,
-    SHORT
+    SHORT,
+    NONE
 };
 
 enum class OrderSide {
     SELL,
-    BUY
+    BUY,
+    NONE
 };
 
 enum class AccountUpdateType {
@@ -64,7 +66,8 @@ enum class OrderType {
     TAKE_PROFIT,
     TAKE_PROFIT_MARKET,
     TRAILING_STOP_MARKET,
-    LIQUIDATION
+    LIQUIDATION,
+    NONE
 };
 
 enum class ExecutionType {
@@ -82,19 +85,22 @@ enum class OrderStatus {
     FILLED,
     CANCELED,
     EXPIRED,
-    EXPIRED_IN_MATCH
+    EXPIRED_IN_MATCH,
+    NONE
 };
 
 enum class TimeInForce {
     GTC,    // Good till cancel
     IOC,    // Immediate or cancel
     FOK,    // Fill or kill
-    GTX     // Good till time/date
+    GTX,     // Good till time/date
+    NONE
 };
 
 enum class WorkingType {
     MARK_PRICE,
-    CONTRACT_PRICE
+    CONTRACT_PRICE,
+    NONE
 };
 
 enum class STPMode {

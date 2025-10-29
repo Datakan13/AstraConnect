@@ -382,7 +382,9 @@ class APIManager {
 
             ~UserFuturesStream() {
                 delete userDataStreamWebsocket;
+                std::cout << "I atleast destroyed the websocket" << std::endl;
                 deleteListenKey();
+                std::cout << "Closed it all off" << std::endl;
             }
         };
        
@@ -481,6 +483,7 @@ class APIManager {
             }
         };
 
+        // To use order responses and check out the data you sent use orderContext you can use a reference of it too
         class OrderStream {
             std::string target = "/ws-fapi/v1";
             WebsocketAPIStreamHolder orderStream;
@@ -491,7 +494,9 @@ class APIManager {
             RequestParameter<std::string> methodPlaceOrder;
             RequestParameter<std::string> requestId;
             OrderTracker orderTracker;
-
+            simdjson::ondemand::parser parser;
+            OrderContext orderContext;
+            // Generates a RequestParameter<std::string> object from inputs
             RequestParameter<std::string> generateParamsForOrder(PositionSide posSide,
                   OrderSide orderSide,
                   TimeInForce tif,
@@ -518,20 +523,26 @@ class APIManager {
                 return out;
             }
 
+            // Generates a random id
             void generateID() {
                 requestId.request = boost::uuids::to_string(boost::uuids::random_generator()());
             }
+            
             public:
+            // Sends an order to binance with all the given parameters and also adds the binance response to the Order class 
+            // Returns true if the order has been registered returns false if it has not been registered 
+            // If returns false check Order's response to see what happened
+            // A new order id is created for each request and written to the given string
             bool sendNewOrder(PositionSide posSide,
                   OrderSide orderSide,
                   TimeInForce tif,
                   OrderType orderType,
                   const std::string& pair,
                   double px,
-                  double qty) {
+                  double qty,std::string& orderID) {
                     try{
                         generateID();
-                        std::string orderID = requestId.request;
+                        orderID = requestId.request;
                         
                         // Turn price and quantity to strings since generateParamsForOrder expects std::string
                         char bufPx[32];
@@ -543,12 +554,23 @@ class APIManager {
 
                         RequestParameter<std::string> params = generateParamsForOrder(posSide,orderSide,tif,orderType,pair,pxStr,qtyStr);
                         std::string payload = makeRequestFromRequestParameters(requestId,methodPlaceOrder,params);
-                        std::cout << payload << std::endl;
-                        orderStream.sendRequest(payload);
 
-                        orderTracker.registerOrderSent(orderID,AstraLib::Time::unixTimestampMS(),px, qty,pair,tif,orderSide,posSide,orderType);
-                        orderTracker.queueActiveOrderId(orderID);
-                        return true;
+                        std::cout << payload << std::endl;
+
+                        auto json = orderStream.sendRequest(payload);
+                        std::cout << "response: " << json << std::endl;
+                        simdjson::ondemand::document doc = parser.iterate(json);
+
+                        orderTracker.registerOrderSent(orderID,AstraLib::Time::unixTimestampMS(),px, qty,pair,tif,orderSide,posSide,orderType,doc);
+                        int64_t status = orderTracker.getOrderStatusint(orderID);
+                        if( status == 200) {
+                            orderTracker.queueActiveOrderId(orderID);
+                            return true;
+                        } else {
+                            std::cout << "status code: " << status << std::endl;
+                            return false;
+                        }
+                        
                     } catch(std::exception& e ) {
                         std::cout << "Soo error is here: "<< e.what() << std::endl;
                         return false;
@@ -559,7 +581,7 @@ class APIManager {
 
             OrderStream(APIManager& base_) : orderStream(base_.hostFuturesWebsocketAPI, target),
             privateKey(base_.PrivateKey), APIKey("apiKey",base_.APIKey), HMACKey("signature"),
-            methodPlaceOrder("method","order.place"), requestId("id"){
+            methodPlaceOrder("method","order.place"), requestId("id"), orderContext(orderTracker){
 
             }
         };
@@ -573,3 +595,5 @@ class APIManager {
 
 
 };
+
+

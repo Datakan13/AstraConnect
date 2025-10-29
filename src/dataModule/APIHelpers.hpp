@@ -39,8 +39,6 @@ inline std::string hmac_sha256(const std::string& key, std::string data) {
     return out;
 }
 
-
-
 class StreamHolder {
     net::io_context& ioc;
     net::ssl::context& ctx;
@@ -188,23 +186,30 @@ class WebsocketStreamHolder {
     AstraLib::Atomic::PaddedAtomic<bool> controlVariable = false;
 
     AstraLib::Buffers::AtomicRingBuffer<Data,1024> bufferOut;
-
     auto getLatestMessage() {
         try {
-            ws.read(buffer);
+            beast::error_code ec;
+
+            ws.read(buffer, ec);
+            if(ec.message() != "Success" ) return simdjson::padded_string{}; 
             auto json = simdjson::padded_string(
                 boost::beast::buffers_to_string(buffer.data())
             );
             buffer.consume(buffer.size());
             return json;
-        } catch(std::exception& e) {
+        } catch (const boost::beast::system_error& e) {
+            if (e.code() == boost::beast::websocket::error::closed) {
+                std::cout << "Closed normally" << std::endl;
+            }
+            return simdjson::padded_string{};
+        }catch(std::exception& e) {
             std::cout << e.what() << std::endl;
-            auto string = simdjson::padded_string();
-            return string;
-        }
+            return simdjson::padded_string{};
+        } 
         
     }
 
+    private:
     void executionLoop() {
         setupConnection();
         Data data;
@@ -218,13 +223,14 @@ class WebsocketStreamHolder {
         }
     }
 
+    public:
     WebsocketStreamHolder(Func func_, 
     std::string host_, std::string target_,ThreadSafeParser& parser_) : 
     resolver(ioc), ws(ioc,ctx),
     target(target_) ,host(host_), 
     ctx(boost::asio::ssl::context::sslv23), parserWrapper(parser_), 
     func(std::move(func_)), thread(&WebsocketStreamHolder::executionLoop,this) {        
-    
+
     }
 
     ~WebsocketStreamHolder() {
@@ -244,8 +250,7 @@ class WebsocketAPIStreamHolder {
     std::string port = "443";
     std::string APIKey;
     std::string privateKey;
-    std::thread* reader;
-    AstraLib::Atomic::PaddedAtomic<bool> running = true;
+    boost::beast::flat_buffer buffer;
     void setupConnection() {
         try {
             auto const results = resolver.resolve(host, port);
@@ -272,31 +277,16 @@ class WebsocketAPIStreamHolder {
             std::cout << e.what() << std::endl;
         }    
     }
-
-    void readLoop() {
-        boost::beast::flat_buffer buffer;
-        while (running.value.load(std::memory_order_acquire)) {
-            boost::system::error_code ec;
-            ws.read(buffer, ec);
-            if (ec) {
-                if (ec == boost::beast::websocket::error::closed) {
-                    std::cout << "[WebSocket closed]" << std::endl;
-                } else {
-                    std::cout << "[Read error] " << ec.message() << std::endl;
-                }
-                break;
-            }
-            std::cout << beast::buffers_to_string(buffer.data()) << std::endl;
-            buffer.consume(buffer.size());
-        }
-    }
-
-
+    
     public:
-
-
-    void sendRequest(std::string& request) {
+    simdjson::padded_string sendRequest(std::string& request) {
         ws.write(net::buffer(request));
+        ws.read(buffer);
+        auto json = simdjson::padded_string(
+                boost::beast::buffers_to_string(buffer.data())
+            );
+            buffer.consume(buffer.size());
+        return json;
     }
 
     std::string getHMAC(std::string& data) {
@@ -307,12 +297,6 @@ class WebsocketAPIStreamHolder {
         APIKey = std::getenv("API_KEY");
         privateKey = std::getenv("PRIVATE_KEY");
         setupConnection();
-        reader = new std::thread([this]() { readLoop(); });
-
     };
 
-    ~WebsocketAPIStreamHolder() {
-        running.value.store(false,std::memory_order_release);
-        reader->join();
-    };
 };

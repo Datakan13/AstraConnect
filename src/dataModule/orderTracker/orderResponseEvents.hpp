@@ -3,7 +3,7 @@
 #include "../helperFunctionsForEnumClasses.hpp"
 #include "simdjson.h"
 #include <AstraLib/AstraLib.hpp>
-
+#include "../error.hpp"
 class RateLimit {
     public:
     RateLimitType type;
@@ -553,24 +553,243 @@ class OrderResponsePtrWrapper {
     OrderNewResponse* newOrder = nullptr;
     OrderCancelResponse* cancelOrder = nullptr;
     OrderModifyResponse* modifyOrder = nullptr;
+    Error* error = nullptr;
+
+    auto returnPtr(OrderTypeSent event) const -> void*{
+        switch(event) {
+            case OrderTypeSent::NEW:
+            return newOrder;
+            case OrderTypeSent::CANCEL:
+            return cancelOrder;
+            case OrderTypeSent::MODIFY:
+            return modifyOrder;
+            default:
+            return nullptr;
+        }
+    }
+
+    int64_t getOrderId(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->orderId;
+            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->orderId;
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->orderId;
+            default:return -1;
+        }
+        
+    }
+
+    std::string getSymbol(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->symbol;
+            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->symbol;
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->symbol;
+            default:return "";
+        }
+        
+    }
+
+    double getPrice(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->price;
+            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->price;
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->price;
+            default:return 0.0;
+        }
+        
+    }
+
+    double getOrigQty(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->origQty;
+            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->origQty;
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->origQty;
+            default:return 0.0;
+        }
+        
+    }
+
+    double getExecutedQty(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->executedQty;
+            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->executedQty;
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->executedQty;
+            default:return 0.0;
+        }
+        
+    }
+
+    OrderStatus getOrderStatus(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->orderStatus;
+            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->orderStatus;
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->orderStatus;
+            default:return OrderStatus::NONE;
+        }
+        
+    }
+
+    TimeInForce getTimeInForce(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->timeInForce;
+            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->timeInForce;
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->timeInForce;
+            default:return TimeInForce::NONE;
+        }
+        
+    }
+
+    OrderSide getOrderSide(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->side;
+            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->side;
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->side;
+            default:return OrderSide::NONE;
+        }
+        
+    }
+
+    PositionSide getPositionSide(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->positionSide;
+            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->positionSide;
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->positionSide;
+            default: return PositionSide::NONE;
+        }
+    }
+
+    double getAvgPrice(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->avgPrice; 
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->avgPrice; 
+            default: return 0.0;
+        }
+    }
+
+    double getCumQty(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->cumQty; 
+            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->cumQty; 
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->cumQty; 
+            default: return 0.0;
+        }
+    }
+
+    double getCumQuote(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->cumQuote; 
+            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->cumQuote; 
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->cumQuote; 
+            default: return 0.0;
+        }
+    }
+
+    bool getReduceOnly(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->reduceOnly; 
+            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->reduceOnly; 
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->reduceOnly; 
+            default: return false;
+        }
+    }
+
+    bool getClosePosition(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->closePosition; 
+            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->closePosition; 
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->closePosition; 
+            default: return false;
+        }
+    }
+
+    WorkingType getWorkingType(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->workingType; 
+            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->workingType; 
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->workingType; 
+            default: return WorkingType::NONE;
+        }
+    }
+
+    bool getPriceProtect(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->priceProtect; 
+            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->priceProtect; 
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->priceProtect; 
+            default: return false;
+        }
+    }
+
+    OrderType getOrigType(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->origType; 
+            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->origType; 
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->origType; 
+            default: return OrderType::NONE;
+        }
+    }
+
+    PriceMatchMode getPriceMatchMode(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->priceMatch; 
+            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->priceMatch; 
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->priceMatch; 
+            default: return PriceMatchMode::NONE;
+        }
+    }
+
+    STPMode getSelfTradePreventionMode(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->selfTradePreventionMode; 
+            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->selfTradePreventionMode; 
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->selfTradePreventionMode; 
+            default: return STPMode::NONE;
+        }
+    }
+
+    int64_t getGoodTillDate(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->goodTillDate; 
+            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->goodTillDate; 
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->goodTillDate; 
+            default: return 0;
+        }
+    }
+
+    int64_t getUpdateTime(OrderTypeSent event) {
+        switch(event) {
+            case OrderTypeSent::NEW: if(newOrder) return newOrder->updateTime; 
+            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->updateTime; 
+            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->updateTime; 
+            default: return 0;
+        }
+    }
+
 
     OrderResponsePtrWrapper(OrderTypeSent type,simdjson::ondemand::document& doc) {
-        switch(type) {
-            case OrderTypeSent::NEW:
-            newOrder = new OrderNewResponse(doc);
-            break;
+        if(doc["status"].get_int64().value() == 200) {
+            switch(type) {
+                case OrderTypeSent::NEW:
+                newOrder = new OrderNewResponse(doc);
+                break;
 
-            case OrderTypeSent::CANCEL:
-            cancelOrder = new OrderCancelResponse(doc);
-            break;
+                case OrderTypeSent::CANCEL:
+                cancelOrder = new OrderCancelResponse(doc);
+                break;
 
-            case OrderTypeSent::MODIFY:
-            modifyOrder = new OrderModifyResponse(doc);
-            break;
+                case OrderTypeSent::MODIFY:
+                modifyOrder = new OrderModifyResponse(doc);
+                break;
 
-            default:
-            break;
+                default:
+                break;
+            }
+        } else {
+            auto obj = doc["error"].get_object().value();
+            error = new Error(obj["code"].get_int64().value());
+            obj["msg"].get_string(error->message);
+            std::cout << "Error: " << error->message << std::endl;
         }
+        
     }
 
     OrderResponsePtrWrapper(OrderResponsePtrWrapper& ref) {
@@ -585,3 +804,5 @@ class OrderResponsePtrWrapper {
         delete modifyOrder;
     }
 };
+
+
