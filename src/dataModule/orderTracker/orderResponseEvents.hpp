@@ -1,6 +1,6 @@
 #pragma once
-#include "../enumClassesForAllStreams.hpp"
-#include "../helperFunctionsForEnumClasses.hpp"
+#include "enums/enumClassesForAllStreams.hpp"
+#include "enums/helperFunctionsForEnumClasses.hpp"
 #include "simdjson.h"
 #include <AstraLib/AstraLib.hpp>
 #include "../error.hpp"

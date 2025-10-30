@@ -1,9 +1,8 @@
-#include "dataModule/apiManager.hpp"
-#include "dataModule/candle.hpp"
-#include "dataModule/openInterest.hpp"
+#include "dataModule/API/binanceAPI.hpp"
+#include "dataModule/dataTypes/includeAllDataTypes.hpp"
 #include <vector>
 #include <AstraLib/AstraLib.hpp>
-#include "dataModule/enumClassesForAllStreams.hpp"
+#include "dataModule/enums/enumClassesForAllStreams.hpp"
 int main() {
     boost::asio::io_context ioc;
     boost::asio::ssl::context ctx(boost::asio::ssl::context::sslv23);

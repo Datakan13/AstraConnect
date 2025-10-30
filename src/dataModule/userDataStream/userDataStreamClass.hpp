@@ -1,8 +1,8 @@
 #pragma once 
 #include <string>
 #include <vector>
-#include "../enumClassesForAllStreams.hpp"
-#include "../helperFunctionsForEnumClasses.hpp"
+#include "enums/enumClassesForAllStreams.hpp"
+#include "enums/helperFunctionsForEnumClasses.hpp"
 #include "userDataStreamEvents.hpp"
 #include "simdjson.h"
 

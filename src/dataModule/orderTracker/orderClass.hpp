@@ -1,5 +1,5 @@
 #pragma once
-#include "../enumClassesForAllStreams.hpp"
+#include "enums/enumClassesForAllStreams.hpp"
 #include "orderResponseEvents.hpp"
 #include <AstraLib/AstraLib.hpp>
 #include "orderSentEvents.hpp"

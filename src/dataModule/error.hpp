@@ -13,3 +13,14 @@ class Error {
 
     }
 };
+
+enum class RequestStatus {
+    SUCCESS,
+    FAIL,
+    UNKNOWN
+};
+
+enum class ConnectionStatus {
+    SUCCESS,
+    FAIL
+};
