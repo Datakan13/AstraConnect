@@ -2,7 +2,9 @@
 #include "dataModule/API/manager/apiManager.hpp"
 #include "dataModule/API/helperClasses/StreamHolder.hpp"
 #include "dataModule/threadSafeParser.hpp"
+#include "dataModule/API/APIError.hpp"
 
+// error handling DONE
 
 class APIManager::SpotAPI{
         StreamHolder spot;
@@ -29,53 +31,67 @@ class APIManager::SpotAPI{
         */
 
         // pair: e.g. "BTCUSDT" timeframe: e.g. "5m", "1h"
-        void fetchCandles(AstraLib::Buffers::AtomicRingBuffer<Candle,2048>& outputBuff, const std::string pair,  const std::string timeframe) {
+        FetchError fetchCandles(AstraLib::Buffers::AtomicRingBuffer<Candle,2048>& outputBuff, const std::string pair,  const std::string timeframe) {
 
             const std::string target = "/api/v3/klines?symbol="+ pair+"&interval=" + timeframe;
             auto json = spot.sendRequest(target);
 
             ThreadSafeParserRAII parser(parserSpot);
-            auto candleArray = parser.parser.iterate(json);
+            auto candleArray = parser.parser.iterate(json);            
             int index = 0;
             Candle outCandle;
-            for(auto candle : candleArray) {
-                auto iterate = candle.value().get_array().value();
-                for ( auto field : iterate) {
-                    switch (index)
-                    {
-                    case 0:
-                        outCandle.timestampOpen = field.value().get_int64().value();
-                        break;
-                    case 1:
-                        outCandle.open = field.value().get_double_in_string().value();
-                        break;
-                    case 2:
-                        outCandle.high = field.value().get_double_in_string().value();
-                        break;
-                    case 3:
-                        outCandle.low = field.value().get_double_in_string().value();
-                        break;
-                    case 4:
-                        outCandle.close = field.value().get_double_in_string().value();
-                        break;
-                    case 5:
-                        outCandle.volume = field.value().get_double_in_string().value();
-                        break;
-                    case 6:
-                        outCandle.timestampClose = field.value().get_int64().value();
-                        break;
-                    case 7:
-                        outCandle.quoteVolume = field.value().get_double_in_string().value();
-                        break;
-                    default:
-                        break;
+            try {
+                for(auto candle : candleArray) {
+                    auto iterate = candle.value().get_array().value();
+                    for ( auto field : iterate) {
+                        switch (index)
+                        {
+                        case 0:
+                            outCandle.timestampOpen = field.value().get_int64().value();
+                            break;
+                        case 1:
+                            outCandle.open = field.value().get_double_in_string().value();
+                            break;
+                        case 2:
+                            outCandle.high = field.value().get_double_in_string().value();
+                            break;
+                        case 3:
+                            outCandle.low = field.value().get_double_in_string().value();
+                            break;
+                        case 4:
+                            outCandle.close = field.value().get_double_in_string().value();
+                            break;
+                        case 5:
+                            outCandle.volume = field.value().get_double_in_string().value();
+                            break;
+                        case 6:
+                            outCandle.timestampClose = field.value().get_int64().value();
+                            break;
+                        case 7:
+                            outCandle.quoteVolume = field.value().get_double_in_string().value();
+                            break;
+                        default:
+                            break;
+                        }
+                        index++;
                     }
-                    index++;
+                    outputBuff.noMoveEnqueue(outCandle);
+                    index = 0;
                 }
-                outputBuff.noMoveEnqueue(outCandle);
-                index = 0;
+            } catch(std::exception& e) {
+                try {
+                    if(candleArray.find_field("error")) {
+                        auto obj = candleArray["error"].get_object().value();
+                        return getErrorFromSimdjson(obj);
+                    }
+                } catch(std::exception& e) {
+                    return FetchError(APIError::BAD_FIELD,std::string{"Failed to parse a field. error: " + std::string(e.what())});
+                }
             }
+            
+            return FetchError(APIError::SUCCESS);
         }
+
         SpotAPI(APIManager& base_) : spot(base_.ioc,base_.ctx,base_.hostSpot) {
         }
     };

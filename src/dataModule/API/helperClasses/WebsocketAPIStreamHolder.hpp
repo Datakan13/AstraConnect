@@ -6,6 +6,8 @@
 #include "dataModule/error.hpp"
 #include "dataModule/API/helperFunctions/hmac_sha256.hpp"
 
+// error handling DONE
+
 class WebsocketAPIStreamHolder {
     net::io_context ioc;
     net::ssl::context ctx;
@@ -17,6 +19,7 @@ class WebsocketAPIStreamHolder {
     std::string APIKey;
     std::string privateKey;
     boost::beast::flat_buffer buffer;
+    
     ConnectionStatus setupConnection() {
         try {
             auto const results = resolver.resolve(host, port);
@@ -69,8 +72,12 @@ class WebsocketAPIStreamHolder {
 
     public:
     simdjson::padded_string sendRequest(std::string& request) {
-        ws.write(net::buffer(request));
-        ws.read(buffer);
+        try {
+            ws.write(net::buffer(request));
+            ws.read(buffer);} 
+        catch(std::exception& e) {
+            throw std::runtime_error(std::string{"Boost error while sending request: " + std::string(e.what())});
+        }
         auto json = simdjson::padded_string(
                 boost::beast::buffers_to_string(buffer.data())
             );

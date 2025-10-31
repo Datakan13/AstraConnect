@@ -5,6 +5,8 @@
 #include "dataModule/dataTypes/requestParameter.hpp"
 #include "dataModule/threadSafeParser.hpp"
 
+// error handling DONE
+
 // The first template is the data you want to keep e.g. TradeEvent 
 // The second template is your data construction function which must return your data type 
 // The second template should also accept simdjson::padded_string

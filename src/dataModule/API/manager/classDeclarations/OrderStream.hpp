@@ -51,6 +51,7 @@ class APIManager::OrderStream{
     // Returns true if the order has been registered returns false if it has not been registered 
     // If returns false check Order's response to see what happened
     // A new order id is created for each request and written to the given string
+    // Will create an Error if exchange refused 
     RequestStatus sendNewOrder(PositionSide posSide,
             OrderSide orderSide,
             TimeInForce tif,
@@ -91,7 +92,10 @@ class APIManager::OrderStream{
                     }
                 }
                 
-            } catch(std::exception& e ) {
+            } catch (std::runtime_error& e) {
+                std::cout << "Boost couldn't send it: " << e.what() << std::endl;
+                return RequestStatus::FAIL;
+            }catch(std::exception& e ) {
                 std::cout << "Soo error is here: "<< e.what() << std::endl;
                 return RequestStatus::FAIL;
             }

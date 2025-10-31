@@ -44,9 +44,9 @@ int main() {
         //<< oi.totalInterestValue << " | " 
         //<< oi.circulation << std::endl;
     }
-
+    CurrentOpenInterest openInterest;
     timer.start();
-    CurrentOpenInterest openInterest = futuresAPI.fetchOpenInterestCurrent("btcusdt");
+    futuresAPI.fetchOpenInterestCurrent(openInterest,"btcusdt");
     timer.write("Fetched current open interest from futures API");
     //std::cout << std::fixed << std::setprecision(8)
     //<< openInterest.timestamp << " | "

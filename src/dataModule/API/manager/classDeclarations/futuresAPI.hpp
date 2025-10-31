@@ -2,6 +2,9 @@
 #include "dataModule/API/manager/apiManager.hpp"
 #include "dataModule/API/helperClasses/StreamHolder.hpp"
 #include "dataModule/threadSafeParser.hpp"
+#include "dataModule/API/APIError.hpp"
+
+// error handling DONE
 
 class APIManager::FuturesAPI{
         StreamHolder futures;
@@ -28,23 +31,41 @@ class APIManager::FuturesAPI{
         */
     
         // Pair: Must be all capital e.g. "BTCUSDT"
-        void fetchOpenInterestHist(AstraLib::Buffers::AtomicRingBuffer<OpenInterest,1024>& outputBuff, const std::string pair, const std::string timeframe) {
+        FetchError fetchOpenInterestHist(AstraLib::Buffers::AtomicRingBuffer<OpenInterest,1024>& outputBuff, const std::string pair, const std::string timeframe) {
 
-            const std::string target = "/futures/data/openInterestHist?symbol=" + pair + "&period=" + timeframe ;
-            auto json = futures.sendRequest(target);
+            const std::string target = "/futures/data/openInterestHist?symbol=" + pair + "&period=" + timeframe;
+            simdjson::padded_string json;
+            try{
+                json = simdjson::padded_string{futures.sendRequest(target)};
+            } catch(std::runtime_error& e) {
+                return FetchError(APIError::BOOST_ERROR,std::string(e.what()));
+            } catch(std::exception& e) {
+                return FetchError(APIError::UNKNOWN,std::string(e.what()));
+            }
 
             ThreadSafeParserRAII parser(parserFutures);
             auto interestArray = parser.parser.iterate(json);
-
-            OpenInterest interestFrameHolder;
-            for(auto interestFrame : interestArray) {
-                interestFrameHolder.totalInterest = interestFrame["sumOpenInterest"].get_double_in_string().value();
-                interestFrameHolder.totalInterestValue = interestFrame["sumOpenInterestValue"].get_double_in_string().value();
-                interestFrameHolder.circulation = interestFrame["CMCCirculatingSupply"].get_double_in_string().value();
-                interestFrameHolder.timestamp = interestFrame["timestamp"].get_int64().value();
-                outputBuff.noMoveEnqueue(interestFrameHolder);
+            try {
+                OpenInterest interestFrameHolder;
+                for(auto interestFrame : interestArray) {
+                    interestFrameHolder.totalInterest = interestFrame["sumOpenInterest"].get_double_in_string().value();
+                    interestFrameHolder.totalInterestValue = interestFrame["sumOpenInterestValue"].get_double_in_string().value();
+                    interestFrameHolder.circulation = interestFrame["CMCCirculatingSupply"].get_double_in_string().value();
+                    interestFrameHolder.timestamp = interestFrame["timestamp"].get_int64().value();
+                    outputBuff.noMoveEnqueue(interestFrameHolder);
+                }
+            } catch(std::exception& e) {
+                outputBuff.clearBuffer();
+                try {
+                    if(interestArray.find_field("error")) {
+                        auto obj = interestArray["error"].get_object().value();
+                        return getErrorFromSimdjson(obj);
+                    }
+                } catch(std::exception& e) {
+                    return FetchError(APIError::BAD_FIELD,std::string{"Failed to parse a field. error: " + std::string(e.what())});
+                }
             }
-
+            return FetchError(APIError::SUCCESS);
         }
 
         /*
@@ -57,18 +78,28 @@ class APIManager::FuturesAPI{
         */
 
         // Returns current interest and timeframe 
-        CurrentOpenInterest fetchOpenInterestCurrent( const std::string pair) {
-            const std::string target = "/fapi/v1/openInterest?symbol=" + pair ;
-            auto json = futures.sendRequest(target);
+        FetchError fetchOpenInterestCurrent(CurrentOpenInterest& ref ,const std::string pair) {
+            const std::string target = "/fapi/v1/openInterest?symbol=" + pair;
+            simdjson::padded_string json;
+            try{
+                json = simdjson::padded_string{futures.sendRequest(target)};
+            } catch(std::runtime_error& e) {
+               return  FetchError(APIError::BOOST_ERROR,std::string(e.what()));
+            } catch(std::exception& e) {
+                return FetchError(APIError::UNKNOWN,std::string(e.what()));
+            }
 
             ThreadSafeParserRAII parser(parserFutures);
             auto interestCurrent = parser.parser.iterate(json);
             
-            int index = 0;
-            CurrentOpenInterest interestHolder;
-            interestHolder.openInterest = interestCurrent.find_field("openInterest").value().get_double_in_string().value();
-            interestHolder.timestamp = interestCurrent.find_field("time").value().get_int64().value();
-            return interestHolder;
+            try {
+                ref.openInterest = interestCurrent.find_field("openInterest").value().get_double_in_string().value();
+                ref.timestamp = interestCurrent.find_field("time").value().get_int64().value();
+            } catch(std::exception& e) {
+                return FetchError(APIError::BAD_FIELD,std::string("Failed to parse a field. error: " + std::string(e.what())));
+            }
+
+            return FetchError(APIError::SUCCESS);
         }
 
         FuturesAPI(APIManager& base_) : futures(base_.ioc,base_.ctx,base_.hostFutures){
