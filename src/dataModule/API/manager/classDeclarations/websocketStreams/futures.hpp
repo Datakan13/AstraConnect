@@ -1,5 +1,5 @@
 #pragma once
-#include "websocketStreams.hpp"
+#include "dataModule/API/manager/classDeclarations/websocketStreams/futures.hpp"
 
 class APIManager::WebsocketStreams::Futures{
     public:

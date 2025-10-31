@@ -1,5 +1,5 @@
 #pragma once
-#include "apiManager.hpp"
+#include "dataModule/API/manager/apiManager.hpp"
 
 class APIManager::WebsocketStreams{
         public:

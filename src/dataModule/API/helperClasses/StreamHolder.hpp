@@ -2,7 +2,7 @@
 #include "boost_include_helpers/includeBoost.hpp"
 #include <AstraLib/AstraLib.hpp>
 #include "simdjson.h"
-#include "dataTypes/requestParameter.hpp"
+#include "dataModule/dataTypes/requestParameter.hpp"
 
 class StreamHolder {
     net::io_context& ioc;

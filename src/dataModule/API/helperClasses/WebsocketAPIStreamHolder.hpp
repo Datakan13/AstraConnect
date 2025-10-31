@@ -2,9 +2,9 @@
 #include "boost_include_helpers/includeBoost.hpp"
 #include <AstraLib/AstraLib.hpp>
 #include "simdjson.h"
-#include "dataTypes/requestParameter.hpp"
-#include "../../error.hpp"
-#include "hmac_sha256.hpp"
+#include "dataModule/dataTypes/requestParameter.hpp"
+#include "dataModule/error.hpp"
+#include "dataModule/API/helperFunctions/hmac_sha256.hpp"
 
 class WebsocketAPIStreamHolder {
     net::io_context ioc;

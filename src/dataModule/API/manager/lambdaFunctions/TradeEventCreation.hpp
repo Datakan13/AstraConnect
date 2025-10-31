@@ -1,6 +1,6 @@
 #pragma once
 #include "simdjson.h"
-#include "tradeEvent.hpp"
+#include "dataModule/dataTypes/tradeEvent.hpp"
 
 /*
     Payload example for trade event stream

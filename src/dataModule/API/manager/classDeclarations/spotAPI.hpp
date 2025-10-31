@@ -1,7 +1,7 @@
 #pragma once
-#include "apiManager.hpp"
-#include "StreamHolder.hpp"
-#include "threadSafeParser.hpp"
+#include "dataModule/API/manager/apiManager.hpp"
+#include "dataModule/API/helperClasses/StreamHolder.hpp"
+#include "dataModule/threadSafeParser.hpp"
 
 
 class APIManager::SpotAPI{

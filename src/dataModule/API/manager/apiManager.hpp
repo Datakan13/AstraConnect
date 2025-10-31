@@ -1,21 +1,21 @@
 #pragma once
 #include "boost_include_helpers/includeBoost.hpp"
 #include <vector>
-#include "candle.hpp"
+#include "dataModule/dataTypes/candle.hpp"
 #include "simdjson.h"
-#include "openInterest.hpp"
-#include "API/helperFunctions/APIHelpers.hpp"
-#include "threadSafeParser.hpp"
-#include "tradeEvent.hpp"
-#include "markPrice.hpp"
-#include "userDataStream/userDataStreamClass.hpp"
-#include "userDataStream/userDataStreamFunctions.hpp"
+#include "dataModule/dataTypes/openInterest.hpp"
+#include "dataModule/API/helperClasses/APIHelpers.hpp"
+#include "dataModule/threadSafeParser.hpp"
+#include "dataModule/dataTypes/tradeEvent.hpp"
+#include "dataModule/dataTypes/markPrice.hpp"
+#include "dataModule/userDataStream/userDataStreamClass.hpp"
+#include "dataModule/userDataStream/userDataStreamFunctions.hpp"
 #include <utility>
 #include <AstraLib/AstraLib.hpp>
 #include <iostream>
 #include <fstream>
-#include "requestParameter.hpp"
-#include "orderTracker/orderTracker.hpp"
+#include "dataModule/dataTypes/requestParameter.hpp"
+#include "dataModule/orderTracker/orderTracker.hpp"
 #include <charconv>
 
 

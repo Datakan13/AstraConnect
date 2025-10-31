@@ -1,5 +1,5 @@
 #pragma once
-#include "userDataStreams.hpp"
+#include "dataModule/API/manager/classDeclarations/userDataStreams/userSpotStream.hpp"
 
 class APIManager::UserDataStreams::UserSpotStream{
     StreamHolder userDataStream;

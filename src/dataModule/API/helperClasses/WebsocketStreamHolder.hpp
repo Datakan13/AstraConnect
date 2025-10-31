@@ -2,8 +2,8 @@
 #include "boost_include_helpers/includeBoost.hpp"
 #include <AstraLib/AstraLib.hpp>
 #include "simdjson.h"
-#include "dataTypes/requestParameter.hpp"
-
+#include "dataModule/dataTypes/requestParameter.hpp"
+#include "dataModule/threadSafeParser.hpp"
 
 // The first template is the data you want to keep e.g. TradeEvent 
 // The second template is your data construction function which must return your data type 

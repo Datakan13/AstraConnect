@@ -1,6 +1,6 @@
 #pragma once
-#include "userDataStreams.hpp"
-#include "userDataStreamClassCreation.hpp"
+#include "dataModule/API/manager/classDeclarations/userDataStreams.hpp"
+#include "dataModule/API/manager/lambdaFunctions/userDataStreamClassCreation.hpp"
 
 class APIManager::UserDataStreams::UserFuturesStream{
     StreamHolder userDataStreamAPI;

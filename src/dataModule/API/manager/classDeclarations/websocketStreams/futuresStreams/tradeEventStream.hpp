@@ -1,6 +1,6 @@
 #pragma once
-#include "futures.hpp"
-#include "TradeEventCreation.hpp"
+#include "dataModule/API/manager/classDeclarations/websocketStreams/futures.hpp"
+#include "dataModule/API/manager/lambdaFunctions/TradeEventCreation.hpp"
 
 class APIManager::WebsocketStreams::Futures::TradeEventStream{
         std::string pair;

@@ -1,6 +1,6 @@
 #pragma once
-#include "apiManager.hpp"
-#include "placeOrderParameters.hpp"
+#include "dataModule/API/helperClasses/APIHelpers.hpp"
+#include "dataModule/API/helperClasses/placeOrderParameters.hpp"
 
 class APIManager::OrderStream{
     std::string target = "/ws-fapi/v1";

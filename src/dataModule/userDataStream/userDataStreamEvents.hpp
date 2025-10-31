@@ -1,7 +1,7 @@
 #pragma once
 #include "simdjson.h"
-#include "enums/enumClassesForAllStreams.hpp"
-#include "enums/helperFunctionsForEnumClasses.hpp"
+#include "dataModule/enums/enumClassesForAllStreams.hpp"
+#include "dataModule/enums/helperFunctionsForEnumClasses.hpp"
 
 /*
 Payload example for account update 

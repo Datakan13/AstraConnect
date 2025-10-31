@@ -1,6 +1,6 @@
 #pragma once
-#include "markPriceCreation.hpp"
-#include "futures.hpp"
+#include "dataModule/API/manager/lambdaFunctions/markPriceCreation.hpp"
+#include "dataModule/API/manager/classDeclarations/websocketStreams/futures.hpp"
 
 class APIManager::WebsocketStreams::Futures::MarkPriceStream{
     const std::string pair;
