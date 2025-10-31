@@ -32,8 +32,8 @@ class APIManager::UserDataStreams::UserFuturesStream{
 
     // non blocking
     UserDataStream getLastMessage() {
-        if(userDataStreamWebsocket->controlVariable.value.load(std::memory_order_acquire)) {
-            return userDataStreamWebsocket->bufferOut.dequeue();
+        if(userDataStreamWebsocket->controlVariable.value.load(std::memory_order_acquire) != 0) {
+            return userDataStreamWebsocket->getLatestData();
         } else {
             return UserDataStream();
         }

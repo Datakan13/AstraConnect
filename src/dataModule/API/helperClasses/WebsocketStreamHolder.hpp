@@ -81,7 +81,7 @@ class WebsocketStreamHolder {
     public:
     // A variable that becomes true when a Data has been queued 
     // No release mechanism for making it false it is user's responsibility to release
-    AstraLib::Atomic::PaddedAtomic<bool> controlVariable = false;
+    AstraLib::Atomic::PaddedAtomic<int> controlVariable = 0;
 
     AstraLib::Buffers::AtomicRingBuffer<Data,1024> bufferOut;
 
@@ -111,6 +111,7 @@ class WebsocketStreamHolder {
         } 
         
     }
+
 
     ConnectionStatus getStatus() {
         while(connecting.value.load(std::memory_order_acquire)) {
@@ -153,11 +154,16 @@ class WebsocketStreamHolder {
 
             data = func(json,parser.parser);
             bufferOut.noMoveEnqueue(data);
-            controlVariable.value.store(true,std::memory_order_release);
+            controlVariable.value.fetch_add(1,std::memory_order_release);
         }
     }
 
     public:
+
+    UserDataStream getLatestData() {
+        controlVariable.value.fetch_sub(1,std::memory_order_release);
+        return bufferOut.dequeue;
+    }
 
     ConnectionStatus reEstablishExecution() {
         closeConnection();
