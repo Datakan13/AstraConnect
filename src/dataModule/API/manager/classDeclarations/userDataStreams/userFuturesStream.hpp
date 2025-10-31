@@ -1,7 +1,7 @@
 #pragma once
 #include "dataModule/API/manager/classDeclarations/userDataStreams.hpp"
 #include "dataModule/API/manager/lambdaFunctions/userDataStreamClassCreation.hpp"
-
+#include "dataModule/API/APIError.hpp"
 class APIManager::UserDataStreams::UserFuturesStream{
     StreamHolder userDataStreamAPI;
     WebsocketStreamHolder<UserDataStream,decltype(UserDataStreamClassCreation)>* userDataStreamWebsocket = nullptr;
@@ -13,30 +13,59 @@ class APIManager::UserDataStreams::UserFuturesStream{
     RequestParameter<std::string> method;
     RequestParameter<std::string> parameters;
     AstraLib::Atomic::PaddedAtomic<bool> messagePresent;
+    AstraLib::Atomic::PaddedAtomic<bool> listenKeyPresent = false;
+    AstraLib::Atomic::PaddedAtomic<bool> connectionAlive = false;
+    AstraLib::Atomic::PaddedAtomic<bool> connecting = true; 
     /*  
         Payload example for listen key 
         {"listenKey":"gwKzdioWPho490C2wogHUt9EF8rfkSxO5EVILWXV7gD0k94n7wP97EEfzA3DURPH"}
     */
     public:
-    void getListenKey() {
+    FetchError getListenKey() {
         std::string target = "/fapi/v1/listenKey";
-        auto json = userDataStreamAPI.sendRequest(target,http::verb::post,true,false,listenKeyParameter);
-        auto doc = parser.iterate(json);
-        doc.find_field("listenKey").get_string(listenKey,true);
+        simdjson::padded_string json;
+        try{
+            json = userDataStreamAPI.sendRequest(target,http::verb::post,true,false,listenKeyParameter);
+            auto doc = parser.iterate(json);
+            doc.find_field("listenKey").get_string(listenKey);
+            listenKeyPresent.value.store(true,std::memory_order_release);
+            std::cout << listenKey << std::endl;
+            return FetchError(APIError::SUCCESS);
+        } catch(std::runtime_error& e) {
+            return FetchError(APIError::BOOST_ERROR,std::string(e.what()));
+        } catch(std::exception& e) {
+            return FetchError(APIError::UNKNOWN,std::string(e.what()));
+        }
     }
 
-    void deleteListenKey() {
+    FetchError deleteListenKey() {
         std::string target = "/fapi/v1/listenKey";
-        auto json = userDataStreamAPI.sendRequest(target,http::verb::delete_,true,false,listenKeyParameter);
+        try {
+            auto json = userDataStreamAPI.sendRequest(target,http::verb::delete_,true,false,listenKeyParameter);
+            return FetchError(APIError::SUCCESS);
+        } catch(std::runtime_error& e) {
+            return FetchError(APIError::BOOST_ERROR,std::string(e.what()));
+        } catch(std::exception& e) {
+            return FetchError(APIError::UNKNOWN,std::string(e.what()));
+        }
     }
 
     // non blocking
-    UserDataStream getLastMessage() {
+    RequestStatus getLastMessage(UserDataStream& ref) {
         if(userDataStreamWebsocket->controlVariable.value.load(std::memory_order_acquire) != 0) {
-            return userDataStreamWebsocket->getLatestData();
+            userDataStreamWebsocket->getLatestData(ref);
+            return RequestStatus::SUCCESS;
         } else {
-            return UserDataStream();
+            return RequestStatus::FAIL;
         }
+    }
+
+    ConnectionStatus getStatus() {
+        while(connecting.value.load(std::memory_order_acquire)) {
+            _mm_pause();
+        }
+        if(!(listenKeyPresent.value.load(std::memory_order_acquire)) || !(connectionAlive.value.load(std::memory_order_acquire)) ) return ConnectionStatus::FAIL;
+        return ConnectionStatus::SUCCESS;
     }
 
     UserFuturesStream(APIManager& base_) : userDataStreamAPI(base_.ioc,base_.ctx,base_.hostFutures),
@@ -46,13 +75,37 @@ class APIManager::UserDataStreams::UserFuturesStream{
         method("method", "userDataStream.start"),
         parameters("parameters")
         {
-            getListenKey();
+            std::atomic_thread_fence(std::memory_order_seq_cst);
+            ConnectionStatus status;
+            FetchError error = getListenKey();
+            if(!error) {
+                std::cout << "No error present" << std::endl;
+                listenKeyPresent.value.store(true,std::memory_order_release);
+            }
+            if(!(listenKeyPresent.value.load(std::memory_order_acquire))){
+                connecting.value.store(false,std::memory_order_release);
+                return;
+            }
             std::string websocketTarget = "/ws/" + listenKey;
             userDataStreamWebsocket = new WebsocketStreamHolder<UserDataStream,decltype(UserDataStreamClassCreation)>(
                 UserDataStreamClassCreation,
                 base_.hostFuturesWebsocket,
                 websocketTarget,
                 base_.websocketParser);
+            status = userDataStreamWebsocket->getStatus();
+            if(status != ConnectionStatus::SUCCESS) {
+                std::cout<< "we are idiot" << std::endl;
+                status = userDataStreamWebsocket->reEstablishExecution();
+                if(status != ConnectionStatus::SUCCESS) {
+                    connecting.value.store(false,std::memory_order_release);
+                    return;
+                }
+            } else {
+                std::cout << "connection is alive" << std::endl;
+                connectionAlive.value.store(true,std::memory_order_release);
+            }
+            std::cout << "We got to connection" << std::endl;
+            connecting.value.store(false,std::memory_order_release);
     }
 
     ~UserFuturesStream() {

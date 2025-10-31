@@ -1,6 +1,8 @@
 #pragma once
 #include "dataModule/API/manager/classDeclarations/userDataStreams/userSpotStream.hpp"
 
+// incomplete just needs the same logic from userFuturesStream
+
 class APIManager::UserDataStreams::UserSpotStream{
     StreamHolder userDataStream;
     std::string APIKey;

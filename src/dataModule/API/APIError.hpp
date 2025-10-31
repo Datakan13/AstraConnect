@@ -219,7 +219,7 @@ constexpr APIError fromErrorCode(int code) noexcept {
 class FetchError {
     public:
     APIError error;
-    std::string* msg;
+    std::unique_ptr<std::string> msg;
 
     std::string getErrorMsg() {
         if(msg) return *msg;
@@ -231,7 +231,7 @@ class FetchError {
     // Use as soon as you called if you need to hold onto the message create a copy
     std::string& getErrorMsgUnsafe() {
         if(msg) return *msg;
-        msg = new std::string{};
+        msg = std::make_unique<std::string>("");
         return *msg;
     }
 
@@ -239,23 +239,19 @@ class FetchError {
     constexpr explicit operator bool() const noexcept { return error != APIError::SUCCESS;}
 
     FetchError(APIError error_, std::string& str) : error(error_) {
-        msg = new std::string{str};
+        msg = std::make_unique<std::string>(str);
     }
     FetchError(APIError error_, std::string&& str) : error(error_) {
-        msg = new std::string{str};
+        msg = std::make_unique<std::string>(std::move(str));
     }
 
     FetchError(int& errorCode_, std::string& str) {
         error = fromErrorCode(errorCode_);
-        msg = new std::string{str};
+        msg = std::make_unique<std::string>(str);
     }
 
     FetchError(APIError error_) : error(error_) {
 
-    }
-
-    ~FetchError() {
-        delete msg;
     }
 
 };

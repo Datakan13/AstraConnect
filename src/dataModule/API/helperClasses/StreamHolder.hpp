@@ -98,6 +98,8 @@ class StreamHolder {
         return json;
     }
 
+    // Returns a simdjson::padded_string that can be iterated
+    // Will throw runtime_error when boost cannot connect or fetch due to any problem
     template<typename... Args>
     auto sendRequest(const std::string& target, http::verb method = http::verb::get,
         bool keepAlive = true, bool needBody = false,

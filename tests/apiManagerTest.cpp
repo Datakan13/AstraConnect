@@ -76,8 +76,8 @@ int main() {
           << ", volume: " << event2.volume
           << ", maker: " << std::boolalpha << event2.maker
           << std::endl;
-
-    UserDataStream userData = userDataStreamFuturesAPI.getLastMessage();
+    UserDataStream userData;
+    RequestStatus userDataStatus  = userDataStreamFuturesAPI.getLastMessage(userData);
     auto userptr = userData.returnPtr();
     if(!userptr) std::cout << "no message recieved" << std::endl;
     std::string orderID;

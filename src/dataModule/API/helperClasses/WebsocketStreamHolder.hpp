@@ -52,6 +52,7 @@ class WebsocketStreamHolder {
             connecting.value.store(false,std::memory_order_release);
             return ConnectionStatus::SUCCESS;
         } catch(std::exception& e) {
+            connecting.value.store(false,std::memory_order_release);
             std::cout << e.what() << std::endl;
             return ConnectionStatus::FAIL;
         } 
@@ -126,7 +127,7 @@ class WebsocketStreamHolder {
         boost::system::error_code ec;
         if(connectionAlive.value.load(std::memory_order_acquire)) connectionAlive.value.store(false,std::memory_order_release);
         if(running.value.load(std::memory_order_acquire)) running.value.store(false,std::memory_order_release);
-        if(getLatestMessage() == simdjson::padded_string{}) ws.next_layer().shutdown(ec);
+        if(getLatestMessage().length() == 0) ws.next_layer().shutdown(ec);
         return !ec;
     }
 
@@ -159,10 +160,13 @@ class WebsocketStreamHolder {
     }
 
     public:
-
-    UserDataStream getLatestData() {
+    Data getLatestData() {
         controlVariable.value.fetch_sub(1,std::memory_order_release);
-        return bufferOut.dequeue;
+        return bufferOut.dequeue();
+    }
+    void getLatestData(Data& ref) {
+        controlVariable.value.fetch_sub(1,std::memory_order_release);
+        ref = bufferOut.dequeue();
     }
 
     ConnectionStatus reEstablishExecution() {
