@@ -36,12 +36,10 @@ class WebsocketAPIStreamHolder {
             
             // Perform the SSL handshake
             ws.next_layer().handshake(ssl::stream_base::client);
-            std::cout << "Setting up connection to: " << host << target << std::endl;
             // Now perform the WebSocket handshake
             boost::beast::websocket::response_type response;
             ws.handshake(response,host, target);
             ws.text(true);
-            std::cout << response << std::endl;
             return ConnectionStatus::SUCCESS;
         } catch(std::exception& e) {
             std::cout << e.what() << std::endl;

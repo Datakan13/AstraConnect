@@ -2,6 +2,9 @@
 #include "dataModule/API/manager/classDeclarations/userDataStreams.hpp"
 #include "dataModule/API/manager/lambdaFunctions/userDataStreamClassCreation.hpp"
 #include "dataModule/API/APIError.hpp"
+
+// error handling DONE
+
 class APIManager::UserDataStreams::UserFuturesStream{
     StreamHolder userDataStreamAPI;
     WebsocketStreamHolder<UserDataStream,decltype(UserDataStreamClassCreation)>* userDataStreamWebsocket = nullptr;
@@ -79,7 +82,6 @@ class APIManager::UserDataStreams::UserFuturesStream{
             ConnectionStatus status;
             FetchError error = getListenKey();
             if(!error) {
-                std::cout << "No error present" << std::endl;
                 listenKeyPresent.value.store(true,std::memory_order_release);
             }
             if(!(listenKeyPresent.value.load(std::memory_order_acquire))){
@@ -94,17 +96,14 @@ class APIManager::UserDataStreams::UserFuturesStream{
                 base_.websocketParser);
             status = userDataStreamWebsocket->getStatus();
             if(status != ConnectionStatus::SUCCESS) {
-                std::cout<< "we are idiot" << std::endl;
                 status = userDataStreamWebsocket->reEstablishExecution();
                 if(status != ConnectionStatus::SUCCESS) {
                     connecting.value.store(false,std::memory_order_release);
                     return;
                 }
             } else {
-                std::cout << "connection is alive" << std::endl;
                 connectionAlive.value.store(true,std::memory_order_release);
             }
-            std::cout << "We got to connection" << std::endl;
             connecting.value.store(false,std::memory_order_release);
     }
 

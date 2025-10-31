@@ -13,7 +13,7 @@ int main() {
     APIManager::FuturesAPI futuresAPI(manager);
     APIManager::SpotAPI spotAPI(manager);
     APIManager::WebsocketStreams::Futures::TradeEventStream tradeEventStream(manager , "btcusdt");
-
+    APIManager::WebsocketStreams::Futures::MarkPriceStream markPriceStream(manager,"btcusdt");
     APIManager::UserDataStreams::UserFuturesStream userDataStreamFuturesAPI(manager);
 
     APIManager::OrderStream orderStream(manager);
@@ -75,6 +75,30 @@ int main() {
           << ", price: " << event2.price
           << ", volume: " << event2.volume
           << ", maker: " << std::boolalpha << event2.maker
+          << std::endl;
+
+    timer.start();
+    AstraLib::Buffers::AtomicRingBuffer<MarkPrice,1024>& markPriceStreamBuffer = markPriceStream.accessToMarkPriceStream();
+    timer.write("Fetched event stream buffer refference");
+
+    timer.start();
+    MarkPrice markPriceEvent =  markPriceStreamBuffer.dequeue();
+    timer.write("Dequeued a trade markPriceEvent from buffer");
+
+    timer.start();
+    MarkPrice markPriceEvent2 = markPriceStreamBuffer.dequeue();
+    timer.write("Dequeued a trade markPriceEvent from buffer");
+
+    std::cout << "timestamp: " << markPriceEvent.timestamp
+          << ", index price: " << markPriceEvent.indexPrice
+          << ", mark price: " << markPriceEvent.markPrice
+          << ", funding rate: " << std::boolalpha << markPriceEvent.fundingRate
+          << std::endl;
+
+    std::cout << "timestamp: " << markPriceEvent2.timestamp
+          << ", index price: " << markPriceEvent2.indexPrice
+          << ", mark price: " << markPriceEvent2.markPrice
+          << ", funding rate: " << std::boolalpha << markPriceEvent2.fundingRate
           << std::endl;
     UserDataStream userData;
     RequestStatus userDataStatus  = userDataStreamFuturesAPI.getLastMessage(userData);
