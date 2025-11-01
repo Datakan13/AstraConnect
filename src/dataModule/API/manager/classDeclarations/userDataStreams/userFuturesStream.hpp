@@ -32,11 +32,12 @@ class APIManager::UserDataStreams::UserFuturesStream{
             auto doc = parser.iterate(json);
             doc.find_field("listenKey").get_string(listenKey);
             listenKeyPresent.value.store(true,std::memory_order_release);
-            std::cout << listenKey << std::endl;
             return FetchError(APIError::SUCCESS);
         } catch(std::runtime_error& e) {
+            std::cout << e.what() << std::endl;
             return FetchError(APIError::BOOST_ERROR,std::string(e.what()));
         } catch(std::exception& e) {
+            std::cout << e.what() << std::endl;
             return FetchError(APIError::UNKNOWN,std::string(e.what()));
         }
     }
@@ -78,7 +79,6 @@ class APIManager::UserDataStreams::UserFuturesStream{
         method("method", "userDataStream.start"),
         parameters("parameters")
         {
-            std::atomic_thread_fence(std::memory_order_seq_cst);
             ConnectionStatus status;
             FetchError error = getListenKey();
             if(!error) {
@@ -88,6 +88,8 @@ class APIManager::UserDataStreams::UserFuturesStream{
                 connecting.value.store(false,std::memory_order_release);
                 return;
             }
+            std::atomic_thread_fence(std::memory_order_seq_cst);
+            if(listenKey == "") throw std::runtime_error("Listen key could not be retrived");
             std::string websocketTarget = "/ws/" + listenKey;
             userDataStreamWebsocket = new WebsocketStreamHolder<UserDataStream,decltype(UserDataStreamClassCreation)>(
                 UserDataStreamClassCreation,

@@ -108,5 +108,12 @@ int main() {
     timer.start();
     orderStream.sendNewOrder(PositionSide::LONG,OrderSide::SELL,TimeInForce::IOC,OrderType::LIMIT,"BTCUSDT",100000.32,0.2,orderID);
     timer.write("Took time for this order");
-    
+    int64_t orderId = orderStream.getLastOrderId();
+    std::string orderIdStr = std::to_string(orderId);
+    timer.start();
+    orderStream.sendModifyOrder(PositionSide::LONG,OrderSide::SELL,PriceMatchMode::BIDDER,OrderType::MARKET,"BTCUSDT",10000.23,0.1,orderIdStr,orderID);
+    timer.write();
+
+    timer.start();
+    orderStream.sendCancelOrder("BTCUSDT",orderIdStr,orderID);
 }

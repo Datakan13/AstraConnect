@@ -29,6 +29,7 @@ class WebsocketStreamHolder {
     std::thread thread;
     ConnectionStatus setupConnection() {
         connecting.value.store(true,std::memory_order_release);
+        std::cout << "connecting to: " << host << target << std::endl;
         try {
             auto const results = resolver.resolve(host, port);
             ctx.set_default_verify_paths();
@@ -118,7 +119,6 @@ class WebsocketStreamHolder {
         while(connecting.value.load(std::memory_order_acquire)) {
             _mm_pause();
         }
-        std::cout << running.value.load(std::memory_order_acquire) << " " << connectionAlive.value.load(std::memory_order_acquire) << std::endl;
         if(!(running.value.load(std::memory_order_acquire)) || !(connectionAlive.value.load(std::memory_order_acquire)) ) return ConnectionStatus::FAIL;
         return ConnectionStatus::SUCCESS;
     }

@@ -87,6 +87,7 @@ class StreamHolder {
             http::write(stream, req);
             http::read(stream, buffer, res);
         } catch(std::exception& e) {
+            std::cout << e.what() <<std::endl;
             throw std::runtime_error(std::string{"Boost error while sending request: " + std::string(e.what())});
         }
         auto json = simdjson::padded_string(

@@ -17,7 +17,7 @@ class OrderTracker {
     AstraLib::Atomic::Spinlock lock;
     std::unordered_map<std::string,Order*> map;
     OrderAccessHolder holder;
-    AstraLib::Buffers::AtomicRingBuffer<std::string,256> activeOrders;
+    AstraLib::Buffers::AtomicRingBuffer<int64_t,256> activeOrders;
 
     void registerOrderSent(std::string& id,int64_t timestamp, double price, double quantity, std::string sym, TimeInForce tif,
         OrderSide s, PositionSide pos, OrderType type,simdjson::ondemand::document& doc) {
@@ -72,11 +72,11 @@ class OrderTracker {
         return holder.getAccess(map[id]);
     }
 
-    std::string getActiveOrderId() {
+    int64_t getActiveOrderId() {
         return activeOrders.dequeue();
     }
 
-    void queueActiveOrderId(std::string& id) {
+    void queueActiveOrderId(int64_t id) {
         activeOrders.noMoveEnqueue(id);
     }
 };

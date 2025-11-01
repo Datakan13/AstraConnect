@@ -4,6 +4,7 @@
 
 
 inline std::string hmac_sha256(const std::string& key, std::string data) {
+    if(data.size() == 0) throw std::runtime_error("Parameter empty");
     unsigned char digest[EVP_MAX_MD_SIZE];
     unsigned int len = 0;
     data.erase(0,1);

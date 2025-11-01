@@ -12,7 +12,7 @@ class APIManager::PlaceOrderParameters{
     RequestParameter<std::string> timeInForce;
     RequestParameter<std::string> timestamp;
     RequestParameter<std::string> type;
-
+    RequestParameter<std::string> priceMatch;
     void prepareOrder(PositionSide posSide,
         OrderSide orderSide,
         TimeInForce tif,
@@ -62,11 +62,62 @@ class APIManager::PlaceOrderParameters{
         timestamp.request = std::to_string(AstraLib::Time::unixTimestampMS());
     }
 
+    void prepareOrder(PositionSide posSide,
+        OrderSide orderSide,
+        PriceMatchMode priceMatchMode,
+        OrderType orderType,
+        const std::string& pair,
+        const std::string& px,
+        const std::string& qty)
+    {
+        type.requestField = "origType";
+        // Position side (BOTH, LONG, SHORT)
+        switch (posSide) {
+            case PositionSide::BOTH:  positionSide.request = "BOTH"; break;
+            case PositionSide::LONG:  positionSide.request = "LONG"; break;
+            case PositionSide::SHORT: positionSide.request = "SHORT"; break;
+        }
+
+        // Side (BUY or SELL)
+        side.request = (orderSide == OrderSide::BUY) ? "BUY" : "SELL";
+
+        // Symbol
+        symbol.request = pair;
+
+        // Price & quantity
+        price.request    = px;
+        quantity.request = qty;
+
+        // Order type
+        switch (orderType) {
+            case OrderType::LIMIT:                type.request = "LIMIT"; break;
+            case OrderType::MARKET:               type.request = "MARKET"; break;
+            case OrderType::STOP:                 type.request = "STOP"; break;
+            case OrderType::STOP_MARKET:          type.request = "STOP_MARKET"; break;
+            case OrderType::TAKE_PROFIT:          type.request = "TAKE_PROFIT"; break;
+            case OrderType::TAKE_PROFIT_MARKET:   type.request = "TAKE_PROFIT_MARKET"; break;
+            case OrderType::TRAILING_STOP_MARKET: type.request = "TRAILING_STOP_MARKET"; break;
+            case OrderType::LIQUIDATION:          type.request = "LIQUIDATION"; break;
+        }
+
+        // Price match mode
+        switch (priceMatchMode) {
+            case PriceMatchMode::NONE:     priceMatch.request = "NONE";     break;
+            case PriceMatchMode::OPPONENT: priceMatch.request = "OPPONENT"; break;
+            case PriceMatchMode::QUEUE:    priceMatch.request = "QUEUE";    break;
+            case PriceMatchMode::MAKER:    priceMatch.request = "MAKER";    break;
+            case PriceMatchMode::BIDDER:   priceMatch.request = "BIDDER";   break;
+        }
+
+        // Timestamp (milliseconds)
+        timestamp.request = std::to_string(AstraLib::Time::unixTimestampMS());
+    }
+
     PlaceOrderParameters() : positionSide("positionSide"), 
     price("price"), quantity("quantity"), 
     side("side"), symbol("symbol"), 
     timeInForce("timeInForce"), timestamp("timestamp"),
-    type("type") {
+    type("type"),priceMatch("priceMatch") {
 
     }
 };
