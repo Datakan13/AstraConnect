@@ -7,7 +7,7 @@
 #include <AstraLib/AstraLib.hpp>
 #include <unordered_map>
 #include "orderClass.hpp"
-
+#include "dataModule/dataTypes/accountInfoLite.hpp"
 enum class GotLock{
     GOT
 };
@@ -26,9 +26,12 @@ class OrderTracker {
         registerOrderResponse(GotLock::GOT,id,OrderTypeSent::NEW,doc);
     }
 
+    // This will create a new order object
     void registerOrderResponse(std::string& id,OrderTypeSent type,simdjson::ondemand::document& doc) {
-        AstraLib::Atomic::SpinlockGuard mapGuard(lock);
-        map[id]->registerResponse(id,type,doc);
+        {
+            AstraLib::Atomic::SpinlockGuard mapGuard(lock);
+            map[id] = new Order(id,type,doc);
+        }
     }
 
     void registerOrderResponse(GotLock,std::string& id,OrderTypeSent type,simdjson::ondemand::document& doc) {
@@ -68,8 +71,13 @@ class OrderTracker {
     }
 
     OrderAccessRAII* getOrderPtr(std::string& id) {
-        AstraLib::Atomic::SpinlockGuard mapGuard(lock);
-        return holder.getAccess(map[id]);
+        OrderAccessRAII* orderPtr;
+        {
+            AstraLib::Atomic::SpinlockGuard mapGuard(lock);
+            orderPtr = holder.getAccess(map[id]);
+            mapGuard.~SpinlockGuard();
+        }
+        return orderPtr;
     }
 
     int64_t getActiveOrderId() {
@@ -79,6 +87,7 @@ class OrderTracker {
     void queueActiveOrderId(int64_t id) {
         activeOrders.noMoveEnqueue(id);
     }
+
 };
 
 class OrderAccess {
@@ -86,7 +95,6 @@ class OrderAccess {
     OrderAccessRAII* access;
     Order& order;
     OrderAccess(OrderTracker& tracker_, std::string& id) : access(tracker_.getOrderPtr(id)),order(*access->orderPtr) {
-
     }
     ~OrderAccess() {
         delete access;
@@ -246,6 +254,20 @@ public:
         }
     };
 
+    class AccountInfo {
+        OrderTracker& tracker;
+        public:
+        explicit AccountInfo(OrderTracker& tracker_) : tracker(tracker_) {}
+
+        void getAccountInfo(std::string& id,AccountInfoLite& out) {
+            OrderAccess access(tracker,id);
+            out.balance = access.order.wrapper->getBalance();
+            out.availableBalance = access.order.wrapper->getAvailableBalance();
+            out.asset = access.order.wrapper->getAsset();
+            out.crossWalletBalance = access.order.wrapper->getCrossWalletBalance();
+            out.updateTime = access.order.wrapper->getUpdateTimeAccount();
+        }
+    };
 };
 
 class OrderContext {

@@ -145,7 +145,7 @@ public:
     RateLimitHolder rateLimits;
 
     void parseFields(simdjson::ondemand::document& doc) {
-        doc["id"].get_string(id);
+        try {doc["id"].get_string(id);
         status = doc["status"].get_int64().value();
 
         auto obj = doc["result"].get_object().value();
@@ -211,6 +211,8 @@ public:
             limit = obj["limit"].get_int64().value();
             count = obj["count"].get_int64().value();
             rateLimits.addRateLimit(rateLimitType,rateLimitInterval,intervalNum,limit,count);
+        }} catch(std::exception& e) {
+            std::cout << "Fucked: " << e.what();
         }
     }
 
@@ -661,16 +663,16 @@ public:
 
     RateLimitHolder rateLimits;
 
-    void parse(simdjson::ondemand::document& doc) {
-        doc["id"].get_string(id);
+    void parseFields(simdjson::ondemand::document& doc) {
+        try{doc["id"].get_string(id);
         status = doc["status"].get_int64().value();
 
-        // result array (we only take the first entry for now)
         auto resultArray = doc["result"].get_array().value();
         for (auto elem : resultArray) {
             auto obj = elem.get_object().value();
             obj["accountAlias"].get_string(accountAlias);
             obj["asset"].get_string(asset);
+            if(asset != "USDT") continue;
             balance = obj["balance"].get_double_in_string().value();
             crossWalletBalance = obj["crossWalletBalance"].get_double_in_string().value();
             crossUnPnl = obj["crossUnPnl"].get_double_in_string().value();
@@ -694,9 +696,12 @@ public:
             count = obj["count"].get_int64().value();
             rateLimits.addRateLimit(rateLimitType, rateLimitInterval, intervalNum, limit, count);
         }
+    }catch(std::exception& e) {
+            std::cout << "Fucked: " << e.what();
+        }
     }
 
-    AccountInfoResponse(simdjson::ondemand::document& doc) { parse(doc); }
+    AccountInfoResponse(simdjson::ondemand::document& doc) { parseFields(doc); }
 
 };
 
@@ -715,6 +720,7 @@ public:
             case OrderTypeSent::CANCEL: return cancelOrder;
             case OrderTypeSent::MODIFY: return modifyOrder;
             case OrderTypeSent::QUERY: return queryOrder;
+            case OrderTypeSent::ACCOUNT_INFO: return accountInfo;
             default: return nullptr;
         }
     }
@@ -986,7 +992,7 @@ public:
                 case OrderTypeSent::QUERY:
                     queryOrder = new QueryOrderResponse(doc);
                     break;
-                case OrderTypeSent::ACCOUNT_INFO: // new
+                case OrderTypeSent::ACCOUNT_INFO:
                     accountInfo = new AccountInfoResponse(doc);
                     break;
                 default:

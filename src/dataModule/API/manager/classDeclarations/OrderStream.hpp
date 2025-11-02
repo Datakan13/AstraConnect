@@ -13,6 +13,7 @@ class APIManager::OrderStream{
     RequestParameter<std::string> methodModifyOrder;
     RequestParameter<std::string> methodCancelOrder;
     RequestParameter<std::string> methodQueryOrder;
+    RequestParameter<std::string> methodAccountInfo;
     RequestParameter<std::string> requestId;
     RequestParameter<std::string> orderId;
     OrderTracker orderTracker;
@@ -87,6 +88,21 @@ class APIManager::OrderStream{
             APIKey,
             orderId,
             pairOut,
+            timestamp
+        );
+        HMACKey.request = hmac_sha256(privateKey,out.request);
+        out.addParameterToRequest(HMACKey);
+        return out;
+    }
+
+    //Params for account info
+    RequestParameter<std::string> generateParamsForOrder() {
+                
+        RequestParameter<std::string> out("params");
+        RequestParameter<std::string> timestamp("timestamp");
+        timestamp.request = std::to_string(AstraLib::Time::unixTimestampMS());
+        out.makeRequestFromRequestParameters(
+            APIKey,
             timestamp
         );
         HMACKey.request = hmac_sha256(privateKey,out.request);
@@ -235,6 +251,41 @@ class APIManager::OrderStream{
         }
     }
 
+    RequestStatus sendAccountInfoRequest( std::string& orderID) {
+        try{
+            generateID();
+            orderID = requestId.request;
+            
+            RequestParameter<std::string> params = generateParamsForOrder();
+            std::string payload = makeRequestFromRequestParameters(requestId,methodAccountInfo,params);
+
+            std::cout << payload << std::endl;
+
+            auto json = orderStream.sendRequest(payload);
+            std::cout << "response: " << json << std::endl;
+            simdjson::ondemand::document doc = parser.iterate(json);
+
+            int64_t status = doc["status"].get_int64().value();
+            if( status == 200) {
+                orderTracker.registerOrderResponse(orderID,OrderTypeSent::ACCOUNT_INFO,doc);
+                return RequestStatus::SUCCESS;
+            } else {
+                if(status / 100 == 4) {
+                    return RequestStatus::FAIL;
+                } else {
+                    return RequestStatus::UNKNOWN;
+                }
+            }
+            
+        } catch (std::runtime_error& e) {
+            std::cout << "Boost or payload issue: " << e.what() << std::endl;
+            return RequestStatus::FAIL;
+        }catch(std::exception& e ) {
+            std::cout << "Soo error is here: "<< e.what() << std::endl;
+            return RequestStatus::FAIL;
+        }
+    }
+
     RequestStatus sendQueryOrder( const std::string& pair,std::string& binanceId,std::string& orderID) {
         try{
             orderID = requestId.request;
@@ -273,9 +324,15 @@ class APIManager::OrderStream{
         return orderTracker.activeOrders.dequeue();
     }
 
+    void getAccountInfo(std::string& id,AccountInfoLite& out) {
+        OrderInfo::AccountInfo info(orderTracker);
+        info.getAccountInfo(id,out);
+    }
+
     OrderStream(APIManager& base_) : orderStream(base_.hostFuturesWebsocketAPI, target),
     privateKey(base_.PrivateKey), APIKey("apiKey",base_.APIKey), HMACKey("signature"),
     methodPlaceOrder("method","order.place"), methodModifyOrder("method","order.modify"), methodCancelOrder("method","order.cancel"), methodQueryOrder("method","order.status"),
+    methodAccountInfo("method","v2/account.balance"),
     requestId("id"), orderContext(orderTracker), orderId("orderId"){
 
     }

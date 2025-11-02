@@ -107,7 +107,7 @@ class Order {
                   const std::string& pair,
                   const double& px,
                   const double& qty) : sent(timestamp_,px,qty,pair,tif,orderSide,posSide,orderType){
-
+                    lock.unlock();
     }
 
     ~Order() {
@@ -118,11 +118,21 @@ class Order {
 class OrderAccessRAII {
 public:
     Order* orderPtr;
-    AstraLib::Atomic::SpinlockGuard guard; 
     AstraLib::Pools::ThreadSafeIndexPool<1024>& pool;
     int index;
+    AstraLib::Atomic::SpinlockGuard guard; 
+
+    Order* getOrderPtr() {
+        return orderPtr;
+    }
+
+    Order& getOrderRef() {
+        return *orderPtr;
+    }
+
     explicit OrderAccessRAII(Order* order_, AstraLib::Pools::ThreadSafeIndexPool<1024>& pool_,int index_)
-        : orderPtr(order_), guard(order_->lock),pool(pool_), index(index_) {}  
+        : orderPtr(order_), guard(order_->lock),pool(pool_), index(index_) {
+        }  
 
         ~OrderAccessRAII() {
             pool.returnIndex(index);

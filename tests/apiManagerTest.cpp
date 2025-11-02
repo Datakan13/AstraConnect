@@ -120,16 +120,21 @@ int main() {
           << ", mark price: " << markPriceEvent2.markPrice
           << ", funding rate: " << std::boolalpha << markPriceEvent2.fundingRate
           << std::endl;
+
     UserDataStream userData;
     RequestStatus userDataStatus  = userDataStreamFuturesAPI.getLastMessage(userData);
     auto userptr = userData.returnPtr();
     if(!userptr) std::cout << "no message recieved" << std::endl;
     std::string orderID;
+
     timer.start();
     orderStream.sendNewOrder(PositionSide::LONG,OrderSide::BUY,TimeInForce::GTC,OrderType::LIMIT,"ETHUSDT",setPrecision(markPriceEvent.markPrice,1),0.2,orderID);
     timer.write("Took time for this order");
+
     int64_t orderId = orderStream.getLastOrderId();
+
     std::string orderIdStr = std::to_string(orderId);
+
     timer.start();
     orderStream.sendModifyOrder(PositionSide::LONG,OrderSide::SELL,PriceMatchMode::NONE,OrderType::MARKET,"ETHUSDT",10000.23,0.1,orderIdStr,orderID);
     timer.write();
@@ -141,7 +146,19 @@ int main() {
     timer.start();
     orderStream.sendQueryOrder("ETHUSDT",orderIdStr,orderID);
     timer.write();
+    std::string accountInfoId;
+    timer.start();
+    RequestStatus accountInfoStatus = orderStream.sendAccountInfoRequest(accountInfoId);
+    timer.write();
+    if(accountInfoStatus == RequestStatus::SUCCESS) std::cout << "Succeeded" << std::endl;
+    
 
-    
-    
+    AccountInfoLite accountInfoHere;
+     orderStream.getAccountInfo(accountInfoId,accountInfoHere);
+    std::cout << "asset: " << accountInfoHere.asset
+          << ", balance: " << accountInfoHere.balance
+          << ", crossWalletBalance: " << accountInfoHere.crossWalletBalance
+          << ", availableBalance: " << accountInfoHere.availableBalance
+          << ", updateTime: " << accountInfoHere.updateTime
+          << std::endl;
 }
