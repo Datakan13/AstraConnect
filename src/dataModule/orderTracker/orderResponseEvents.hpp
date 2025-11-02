@@ -548,240 +548,449 @@ public:
     }
 };
 
+class QueryOrderResponse {
+public:
+    int64_t orderId;
+    std::string clientOrderId;
+    std::string symbol;
+    OrderSide side;
+    PositionSide positionSide;
+    OrderStatus status;
+    TimeInForce timeInForce;
+    OrderType type;
+    WorkingType workingType;
+
+    double avgPrice;
+    double cumQuote;
+    double executedQty;
+    double origQty;
+    double price;
+    double stopPrice;
+    double activatePrice;
+    double priceRate;
+
+    bool reduceOnly;
+    bool closePosition;
+    bool priceProtect;
+
+    int64_t time;
+    int64_t updateTime;
+
+    RateLimitHolder rateLimits;
+
+    void parseFields(simdjson::ondemand::document &doc) {
+        auto result = doc["result"];
+        orderId = result["orderId"].get_int64().value();
+        result["clientOrderId"].get_string(clientOrderId);
+        result["symbol"].get_string(symbol);
+
+        // numeric fields as strings
+        avgPrice       = result["avgPrice"].get_double_in_string().value();
+        cumQuote       = result["cumQuote"].get_double_in_string().value();
+        executedQty    = result["executedQty"].get_double_in_string().value();
+        origQty        = result["origQty"].get_double_in_string().value();
+        price          = result["price"].get_double_in_string().value();
+        stopPrice      = result["stopPrice"].get_double_in_string().value();
+        activatePrice  = result["activatePrice"].get_double_in_string().value();
+        priceRate      = result["priceRate"].get_double_in_string().value();
+
+        // bools
+        reduceOnly     = result["reduceOnly"].get_bool().value();
+        closePosition  = result["closePosition"].get_bool().value();
+        priceProtect   = result["priceProtect"].get_bool().value();
+
+        // enums (convert strings to your internal enums)
+        std::string tmp;
+        result["side"].get_string(tmp);
+        side = returnOrderSide(tmp);
+
+        result["positionSide"].get_string(tmp);
+        positionSide = returnPositionSide(tmp);
+
+        result["status"].get_string(tmp);
+        status = returnOrderStatus(tmp);
+
+        result["timeInForce"].get_string(tmp);
+        timeInForce = returnTimeInForce(tmp);
+
+        result["type"].get_string(tmp);
+        type = returnOrderType(tmp);
+
+        result["workingType"].get_string(tmp);
+        workingType = returnWorkingType(tmp);
+
+        // timestamps
+        time = result["time"].get_int64().value();
+        updateTime = result["updateTime"].get_int64().value();
+
+        auto rateArray = doc["rateLimits"].get_array().value();
+
+        std::string rateLimitType;
+        std::string rateLimitInterval;
+        int64_t intervalNum;
+        int64_t limit;
+        int64_t count;
+        for(auto rate : rateArray) {
+            auto obj = rate.get_object().value();
+            obj["rateLimitType"].get_string(rateLimitType);
+            obj["interval"].get_string(rateLimitInterval);
+            intervalNum = obj["intervalNum"].get_int64().value();
+            limit = obj["limit"].get_int64().value();
+            count = obj["count"].get_int64().value();
+            rateLimits.addRateLimit(rateLimitType,rateLimitInterval,intervalNum,limit,count);
+        }
+    }
+
+    QueryOrderResponse(simdjson::ondemand::document &doc) { parseFields(doc); }
+
+};
+
+class AccountInfoResponse {
+public:
+    std::string id;                // "605a6d20-6588-4cb9-afa0-b0ab087507ba"
+    int status;                    // 200
+    std::string accountAlias;      // "SgsR"
+    std::string asset;             // "USDT"
+    double balance;                // "122607.35137903"
+    double crossWalletBalance;     // "23.72469206"
+    double crossUnPnl;             // "0.00000000"
+    double availableBalance;       // "23.72469206"
+    double maxWithdrawAmount;      // "23.72469206"
+    bool marginAvailable;          // true
+    int64_t updateTime;            // 1617939110373
+
+    RateLimitHolder rateLimits;
+
+    void parse(simdjson::ondemand::document& doc) {
+        doc["id"].get_string(id);
+        status = doc["status"].get_int64().value();
+
+        // result array (we only take the first entry for now)
+        auto resultArray = doc["result"].get_array().value();
+        for (auto elem : resultArray) {
+            auto obj = elem.get_object().value();
+            obj["accountAlias"].get_string(accountAlias);
+            obj["asset"].get_string(asset);
+            balance = obj["balance"].get_double_in_string().value();
+            crossWalletBalance = obj["crossWalletBalance"].get_double_in_string().value();
+            crossUnPnl = obj["crossUnPnl"].get_double_in_string().value();
+            availableBalance = obj["availableBalance"].get_double_in_string().value();
+            maxWithdrawAmount = obj["maxWithdrawAmount"].get_double_in_string().value();
+            marginAvailable = obj["marginAvailable"].get_bool().value();
+            updateTime = obj["updateTime"].get_int64().value();
+            break; // only one asset usually relevant for USDT
+        }
+
+        // parse rate limits
+        auto rateArray = doc["rateLimits"].get_array().value();
+        std::string rateLimitType, rateLimitInterval;
+        int64_t intervalNum, limit, count;
+        for (auto rate : rateArray) {
+            auto obj = rate.get_object().value();
+            obj["rateLimitType"].get_string(rateLimitType);
+            obj["interval"].get_string(rateLimitInterval);
+            intervalNum = obj["intervalNum"].get_int64().value();
+            limit = obj["limit"].get_int64().value();
+            count = obj["count"].get_int64().value();
+            rateLimits.addRateLimit(rateLimitType, rateLimitInterval, intervalNum, limit, count);
+        }
+    }
+
+    AccountInfoResponse(simdjson::ondemand::document& doc) { parse(doc); }
+
+};
+
 class OrderResponsePtrWrapper {
-    public:
+public:
     OrderNewResponse* newOrder = nullptr;
     OrderCancelResponse* cancelOrder = nullptr;
     OrderModifyResponse* modifyOrder = nullptr;
+    QueryOrderResponse* queryOrder = nullptr;
+    AccountInfoResponse* accountInfo = nullptr;
     Error* error = nullptr;
 
-    auto returnPtr(OrderTypeSent event) const -> void*{
-        switch(event) {
-            case OrderTypeSent::NEW:
-            return newOrder;
-            case OrderTypeSent::CANCEL:
-            return cancelOrder;
-            case OrderTypeSent::MODIFY:
-            return modifyOrder;
-            default:
-            return nullptr;
+    auto returnPtr(OrderTypeSent event) const -> void* {
+        switch (event) {
+            case OrderTypeSent::NEW: return newOrder;
+            case OrderTypeSent::CANCEL: return cancelOrder;
+            case OrderTypeSent::MODIFY: return modifyOrder;
+            case OrderTypeSent::QUERY: return queryOrder;
+            default: return nullptr;
         }
     }
 
     int64_t getOrderId(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->orderId;
-            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->orderId;
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->orderId;
-            default:return -1;
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->orderId;
+            case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->orderId;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->orderId;
+            case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->orderId;
+            default: return -1;
         }
-        
     }
 
     std::string getSymbol(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->symbol;
-            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->symbol;
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->symbol;
-            default:return "";
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->symbol;
+            case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->symbol;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->symbol;
+            case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->symbol;
+            default: return "";
         }
-        
     }
 
     double getPrice(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->price;
-            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->price;
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->price;
-            default:return 0.0;
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->price;
+            case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->price;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->price;
+            case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->price;
+            default: return 0.0;
         }
-        
     }
 
     double getOrigQty(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->origQty;
-            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->origQty;
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->origQty;
-            default:return 0.0;
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->origQty;
+            case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->origQty;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->origQty;
+            case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->origQty;
+            default: return 0.0;
         }
-        
     }
 
     double getExecutedQty(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->executedQty;
-            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->executedQty;
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->executedQty;
-            default:return 0.0;
-        }
-        
-    }
-
-    OrderStatus getOrderStatus(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->orderStatus;
-            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->orderStatus;
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->orderStatus;
-            default:return OrderStatus::NONE;
-        }
-        
-    }
-
-    TimeInForce getTimeInForce(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->timeInForce;
-            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->timeInForce;
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->timeInForce;
-            default:return TimeInForce::NONE;
-        }
-        
-    }
-
-    OrderSide getOrderSide(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->side;
-            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->side;
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->side;
-            default:return OrderSide::NONE;
-        }
-        
-    }
-
-    PositionSide getPositionSide(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->positionSide;
-            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->positionSide;
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->positionSide;
-            default: return PositionSide::NONE;
-        }
-    }
-
-    double getAvgPrice(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->avgPrice; 
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->avgPrice; 
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->executedQty;
+            case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->executedQty;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->executedQty;
+            case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->executedQty;
             default: return 0.0;
         }
     }
 
     double getCumQty(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->cumQty; 
-            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->cumQty; 
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->cumQty; 
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->cumQty;
+            case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->cumQty;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->cumQty;
+            case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->executedQty; // alias for compatibility
             default: return 0.0;
         }
     }
 
     double getCumQuote(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->cumQuote; 
-            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->cumQuote; 
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->cumQuote; 
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->cumQuote;
+            case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->cumQuote;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->cumQuote;
+            case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->cumQuote;
             default: return 0.0;
         }
     }
 
-    bool getReduceOnly(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->reduceOnly; 
-            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->reduceOnly; 
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->reduceOnly; 
-            default: return false;
+    double getAvgPrice(OrderTypeSent event) {
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->avgPrice;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->avgPrice;
+            case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->avgPrice;
+            default: return 0.0;
         }
     }
 
-    bool getClosePosition(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->closePosition; 
-            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->closePosition; 
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->closePosition; 
-            default: return false;
+    OrderStatus getOrderStatus(OrderTypeSent event) {
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->orderStatus;
+            case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->orderStatus;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->orderStatus;
+            case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->status;
+            default: return OrderStatus::NONE;
+        }
+    }
+
+    TimeInForce getTimeInForce(OrderTypeSent event) {
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->timeInForce;
+            case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->timeInForce;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->timeInForce;
+            case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->timeInForce;
+            default: return TimeInForce::NONE;
+        }
+    }
+
+    OrderSide getOrderSide(OrderTypeSent event) {
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->side;
+            case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->side;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->side;
+            case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->side;
+            default: return OrderSide::NONE;
+        }
+    }
+
+    PositionSide getPositionSide(OrderTypeSent event) {
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->positionSide;
+            case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->positionSide;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->positionSide;
+            case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->positionSide;
+            default: return PositionSide::NONE;
         }
     }
 
     WorkingType getWorkingType(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->workingType; 
-            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->workingType; 
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->workingType; 
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->workingType;
+            case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->workingType;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->workingType;
+            case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->workingType;
             default: return WorkingType::NONE;
         }
     }
 
-    bool getPriceProtect(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->priceProtect; 
-            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->priceProtect; 
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->priceProtect; 
-            default: return false;
-        }
-    }
-
     OrderType getOrigType(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->origType; 
-            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->origType; 
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->origType; 
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->origType;
+            case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->origType;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->origType;
+            case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->type;
             default: return OrderType::NONE;
         }
     }
 
     PriceMatchMode getPriceMatchMode(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->priceMatch; 
-            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->priceMatch; 
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->priceMatch; 
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->priceMatch;
+            case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->priceMatch;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->priceMatch;
             default: return PriceMatchMode::NONE;
         }
     }
 
     STPMode getSelfTradePreventionMode(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->selfTradePreventionMode; 
-            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->selfTradePreventionMode; 
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->selfTradePreventionMode; 
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->selfTradePreventionMode;
+            case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->selfTradePreventionMode;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->selfTradePreventionMode;
             default: return STPMode::NONE;
         }
     }
 
     int64_t getGoodTillDate(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->goodTillDate; 
-            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->goodTillDate; 
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->goodTillDate; 
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->goodTillDate;
+            case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->goodTillDate;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->goodTillDate;
             default: return 0;
+        }
+    }
+
+    bool getReduceOnly(OrderTypeSent event) {
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->reduceOnly;
+            case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->reduceOnly;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->reduceOnly;
+            case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->reduceOnly;
+            default: return false;
+        }
+    }
+
+    bool getClosePosition(OrderTypeSent event) {
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->closePosition;
+            case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->closePosition;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->closePosition;
+            case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->closePosition;
+            default: return false;
+        }
+    }
+
+    bool getPriceProtect(OrderTypeSent event) {
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->priceProtect;
+            case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->priceProtect;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->priceProtect;
+            case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->priceProtect;
+            default: return false;
         }
     }
 
     int64_t getUpdateTime(OrderTypeSent event) {
-        switch(event) {
-            case OrderTypeSent::NEW: if(newOrder) return newOrder->updateTime; 
-            case OrderTypeSent::CANCEL: if(cancelOrder) return cancelOrder->updateTime; 
-            case OrderTypeSent::MODIFY: if(modifyOrder) return modifyOrder->updateTime; 
+        switch (event) {
+            case OrderTypeSent::NEW: if (newOrder) return newOrder->updateTime;
+            case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->updateTime;
+            case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->updateTime;
+            case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->updateTime;
             default: return 0;
         }
     }
 
+    std::string getAccountAlias() const {
+        if (accountInfo) return accountInfo->accountAlias;
+        return "";
+    }
 
-    OrderResponsePtrWrapper(OrderTypeSent type,simdjson::ondemand::document& doc) {
-        if(doc["status"].get_int64().value() == 200) {
-            switch(type) {
+    std::string getAsset() const {
+        if (accountInfo) return accountInfo->asset;
+        return "";
+    }
+
+    double getBalance() const {
+        if (accountInfo) return accountInfo->balance;
+        return 0.0;
+    }
+
+    double getCrossWalletBalance() const {
+        if (accountInfo) return accountInfo->crossWalletBalance;
+        return 0.0;
+    }
+
+    double getCrossUnPnl() const {
+        if (accountInfo) return accountInfo->crossUnPnl;
+        return 0.0;
+    }
+
+    double getAvailableBalance() const {
+        if (accountInfo) return accountInfo->availableBalance;
+        return 0.0;
+    }
+
+    double getMaxWithdrawAmount() const {
+        if (accountInfo) return accountInfo->maxWithdrawAmount;
+        return 0.0;
+    }
+
+    bool getMarginAvailable() const {
+        if (accountInfo) return accountInfo->marginAvailable;
+        return false;
+    }
+
+    int64_t getUpdateTimeAccount() const {
+        if (accountInfo) return accountInfo->updateTime;
+        return 0;
+    }
+
+    // Constructor
+    OrderResponsePtrWrapper(OrderTypeSent type, simdjson::ondemand::document& doc) {
+        if (doc["status"].get_int64().value() == 200) {
+            switch (type) {
                 case OrderTypeSent::NEW:
-                newOrder = new OrderNewResponse(doc);
-                break;
-
+                    newOrder = new OrderNewResponse(doc);
+                    break;
                 case OrderTypeSent::CANCEL:
-                cancelOrder = new OrderCancelResponse(doc);
-                break;
-
+                    cancelOrder = new OrderCancelResponse(doc);
+                    break;
                 case OrderTypeSent::MODIFY:
-                modifyOrder = new OrderModifyResponse(doc);
-                break;
-
+                    modifyOrder = new OrderModifyResponse(doc);
+                    break;
+                case OrderTypeSent::QUERY:
+                    queryOrder = new QueryOrderResponse(doc);
+                    break;
+                case OrderTypeSent::ACCOUNT_INFO: // new
+                    accountInfo = new AccountInfoResponse(doc);
+                    break;
                 default:
-                break;
+                    break;
             }
         } else {
             auto obj = doc["error"].get_object().value();
@@ -789,20 +998,13 @@ class OrderResponsePtrWrapper {
             obj["msg"].get_string(error->message);
             std::cout << "Error: " << error->message << std::endl;
         }
-        
-    }
-
-    OrderResponsePtrWrapper(OrderResponsePtrWrapper& ref) {
-        ref.newOrder = newOrder;
-        ref.cancelOrder = cancelOrder;
-        ref.modifyOrder = modifyOrder;
     }
 
     ~OrderResponsePtrWrapper() {
         delete newOrder;
         delete cancelOrder;
         delete modifyOrder;
+        delete queryOrder;
     }
 };
-
 

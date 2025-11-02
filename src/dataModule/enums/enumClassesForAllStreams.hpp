@@ -5,6 +5,8 @@ enum class OrderTypeSent {
     NEW,
     MODIFY,
     CANCEL,
+    QUERY,
+    ACCOUNT_INFO,
     NONE
 };
 

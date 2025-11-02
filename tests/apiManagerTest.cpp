@@ -3,6 +3,13 @@
 #include <vector>
 #include <AstraLib/AstraLib.hpp>
 #include "dataModule/enums/enumClassesForAllStreams.hpp"
+
+double setPrecision(double value, int decimals) {
+    double factor = std::pow(10.0, decimals);
+    return std::trunc(value * factor) / factor;
+}
+
+
 int main() {
     boost::asio::io_context ioc;
     boost::asio::ssl::context ctx(boost::asio::ssl::context::sslv23);
@@ -12,13 +19,26 @@ int main() {
     AstraLib::Time::Timer timer;
     APIManager::FuturesAPI futuresAPI(manager);
     APIManager::SpotAPI spotAPI(manager);
-    APIManager::WebsocketStreams::Futures::TradeEventStream tradeEventStream(manager , "btcusdt");
-    APIManager::WebsocketStreams::Futures::MarkPriceStream markPriceStream(manager,"btcusdt");
+    APIManager::WebsocketStreams::Futures::TradeEventStream tradeEventStream(manager , "ethusdc");
+    APIManager::WebsocketStreams::Futures::MarkPriceStream markPriceStream(manager,"ethusdc");
     APIManager::UserDataStreams::UserFuturesStream userDataStreamFuturesAPI(manager);
 
     APIManager::OrderStream orderStream(manager);
+
+    PairInfo info;
     timer.start();
-    spotAPI.fetchCandles(vec,"BTCUSDT","5m");
+    futuresAPI.fetchExchangeInfoForPair("ETHUSDT",info);
+    timer.write();
+      std::cout << "minNotional: " << info.minNotional
+          << ", minPrice: " << info.minPrice
+          << ", maxPrice: " << info.maxPrice
+          << ", tickSize: " << info.tickSize
+          << ", minQuantity: " << info.minQuantity
+          << ", maxQuantity: " << info.maxQuantity
+          << ", stepSize: " << info.stepsize
+          << std::endl;
+    timer.start();
+    spotAPI.fetchCandles(vec,"ETHUSDT","5m");
     timer.write("Fetched candles from spot API");
     for(int i = 0; i < 20; i++) {
         Candle candle = vec.dequeue();
@@ -33,7 +53,7 @@ int main() {
         //  << candle.timestampClose << std::endl;
     }
     timer.start();
-    futuresAPI.fetchOpenInterestHist(vec2,"BTCUSDT","5m");
+    futuresAPI.fetchOpenInterestHist(vec2,"ETHUSDT","5m");
     timer.write("Fetched open interest history from futures API");
     for(int i = 0; i < 20; i++) {
         OpenInterest oi = vec2.dequeue();
@@ -46,7 +66,7 @@ int main() {
     }
     CurrentOpenInterest openInterest;
     timer.start();
-    futuresAPI.fetchOpenInterestCurrent(openInterest,"btcusdt");
+    futuresAPI.fetchOpenInterestCurrent(openInterest,"ethusdc");
     timer.write("Fetched current open interest from futures API");
     //std::cout << std::fixed << std::setprecision(8)
     //<< openInterest.timestamp << " | "
@@ -106,14 +126,22 @@ int main() {
     if(!userptr) std::cout << "no message recieved" << std::endl;
     std::string orderID;
     timer.start();
-    orderStream.sendNewOrder(PositionSide::LONG,OrderSide::SELL,TimeInForce::IOC,OrderType::LIMIT,"BTCUSDT",100000.32,0.2,orderID);
+    orderStream.sendNewOrder(PositionSide::LONG,OrderSide::BUY,TimeInForce::GTC,OrderType::LIMIT,"ETHUSDT",setPrecision(markPriceEvent.markPrice,1),0.2,orderID);
     timer.write("Took time for this order");
     int64_t orderId = orderStream.getLastOrderId();
     std::string orderIdStr = std::to_string(orderId);
     timer.start();
-    orderStream.sendModifyOrder(PositionSide::LONG,OrderSide::SELL,PriceMatchMode::BIDDER,OrderType::MARKET,"BTCUSDT",10000.23,0.1,orderIdStr,orderID);
+    orderStream.sendModifyOrder(PositionSide::LONG,OrderSide::SELL,PriceMatchMode::NONE,OrderType::MARKET,"ETHUSDT",10000.23,0.1,orderIdStr,orderID);
     timer.write();
 
     timer.start();
-    orderStream.sendCancelOrder("BTCUSDT",orderIdStr,orderID);
+    orderStream.sendCancelOrder("ETHUSDT",orderIdStr,orderID);
+    timer.write();
+
+    timer.start();
+    orderStream.sendQueryOrder("ETHUSDT",orderIdStr,orderID);
+    timer.write();
+
+    
+    
 }
