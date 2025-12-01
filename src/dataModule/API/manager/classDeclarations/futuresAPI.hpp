@@ -4,6 +4,7 @@
 #include "dataModule/threadSafeParser.hpp"
 #include "dataModule/API/APIError.hpp"
 #include "dataModule/dataTypes/exchangeInfo.hpp"
+#include "dataModule/API/helperClasses/orderbookSnapshotIncoming.hpp"
 // error handling DONE
 
 class APIManager::FuturesAPI{
@@ -258,6 +259,48 @@ class APIManager::FuturesAPI{
             }
             return FetchError(APIError::UNKNOWN);
         } 
+
+        FetchError fetchOrderbookSnapshot(std::string pair, OrderbookSnapshotIncoming& out) {
+            std::cout << "snapshot ordered" << std::endl;
+            const std::string target = "/fapi/v1/depth?symbol="+pair+"&limit=1000";
+            simdjson::padded_string json;
+            try{
+                json = simdjson::padded_string{futures.sendRequest(target)};
+            } catch(std::runtime_error& e) {
+               return  FetchError(APIError::BOOST_ERROR,std::string(e.what()));
+            } catch(std::exception& e) {
+                return FetchError(APIError::UNKNOWN,std::string(e.what()));
+            }
+            ThreadSafeParserRAII parser(parserFutures);
+            auto doc = parser.parser.iterate(json);
+            out.updateId = doc["lastUpdateId"].get_int64();
+            for(auto bid : doc["bids"]){
+                auto ary = bid.value().get_array();
+                double price = 0;
+                double volume;
+                for(auto val : ary){
+                    if(price != 0){
+                        volume = val.value().get_double_in_string().value();
+                    } else {
+                        price = val.value().get_double_in_string().value();
+                    }
+                }
+                out.registerEntry(price,volume,true);
+            }
+            for(auto ask :  doc["asks"]){
+                auto ary = ask.value().get_array();
+                double price = 0;
+                double volume;
+                for(auto val : ary){
+                    if(price != 0){
+                        volume = val.value().get_double_in_string().value();
+                    } else {
+                        price = val.value().get_double_in_string().value();
+                    }
+                }
+                out.registerEntry(price,volume,false);
+            }
+        }
 
         FuturesAPI(APIManager& base_) : futures(base_.ioc,base_.ctx,base_.hostFutures){
         }

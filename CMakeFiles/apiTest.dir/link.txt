@@ -1,0 +1,1 @@
+/usr/bin/c++ -g CMakeFiles/apiTest.dir/tests/apiManagerTest.cpp.o CMakeFiles/apiTest.dir/include/simdjson/simdjson.cpp.o -o apiTest  /usr/lib/x86_64-linux-gnu/libboost_system.so.1.74.0 /usr/lib/x86_64-linux-gnu/libboost_thread.so.1.74.0 /usr/lib/x86_64-linux-gnu/libssl.so /usr/lib/x86_64-linux-gnu/libcrypto.so /usr/lib/x86_64-linux-gnu/libboost_atomic.so.1.74.0 

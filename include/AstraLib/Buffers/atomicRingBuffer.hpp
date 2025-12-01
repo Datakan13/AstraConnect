@@ -47,6 +47,7 @@ class AtomicRingBuffer {
     A dequeue() {
         uint64_t ticket = readTicket.value.fetch_add(1,std::memory_order_acq_rel);
         int index = ticket & (SIZE - 1);
+        std::cout << ticket << std::endl;
         while(buffer[index].seq.load(std::memory_order_acquire) != ticket + 1) {
             if(clearingQueue.value.load(std::memory_order_acquire)) return A();
             _mm_pause();

@@ -20,7 +20,7 @@
 
 
 class APIManager {
-
+    public:
     const std::string hostSpot = "api.binance.com";
     const std::string hostFutures = "fapi.binance.com";
     const std::string hostFuturesWebsocket = "fstream.binance.com";

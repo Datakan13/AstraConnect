@@ -1,0 +1,3 @@
+/Projects/FastMoney/CMakeFiles/apiTest.dir
+/Projects/FastMoney/CMakeFiles/edit_cache.dir
+/Projects/FastMoney/CMakeFiles/rebuild_cache.dir

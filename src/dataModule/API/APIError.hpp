@@ -5,6 +5,8 @@ enum class APIError : int {
     SUCCESS                     = 0,
     BAD_FIELD                   = 1,
     BOOST_ERROR                 = 2,
+    ORDERBOOK_OUTDATED          = 3,
+    RETRY                       = 4,
     // 10xx - General Server or Network issues
     UNKNOWN                     = -1000,
     DISCONNECTED                = -1001,

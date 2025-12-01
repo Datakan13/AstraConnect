@@ -25,3 +25,7 @@ enum class ConnectionStatus {
     FAIL
 };
 
+enum class PriceValid {
+    VALID,
+    NOT_VALID
+};
