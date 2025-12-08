@@ -7,48 +7,51 @@
 #include <iostream>
 #include <chrono>
 class alignas(64) ThreadSafeIndexMap{
-    alignas(64) std::unordered_map<double, IndexedBidAsk> priceToIndexMap;
+    alignas(64) std::unordered_map<double, IndexedBidAsk> priceToIndexMapBids;
+    alignas(64) std::unordered_map<double, IndexedBidAsk> priceToIndexMapAsks;
     AstraLib::Atomic::Spinlock lock;
     
-
     public:
-    IndexedBidAsk returnIndexedBidAsk(double price) {
-        if(!contains(price)) return IndexedBidAsk();
+    IndexedBidAsk returnIndexedBidAsk(double price,bool isBid) {
+        // default indexedBidAsk returns false
+        if(!contains(price,isBid)) return IndexedBidAsk();
 
-        IndexedBidAsk result = priceToIndexMap[price];
+        IndexedBidAsk result = (isBid) ? priceToIndexMapBids[price] : priceToIndexMapAsks[price];
 
         return result;
     }
 
-    bool contains(double price){
-        
+    bool contains(double price,bool isBid){
         AstraLib::Atomic::SpinlockGuard guard(lock);
-        return priceToIndexMap.find(price) == priceToIndexMap.end();
+        return (isBid) ? !(priceToIndexMapBids.find(price) == priceToIndexMapBids.end()): !(priceToIndexMapAsks.find(price) == priceToIndexMapAsks.end());
     }
 
-    bool addEntry(double price,double index, bool isBid){
+    void addEntry(double price,double index, bool isBid){
         AstraLib::Atomic::SpinlockGuard guard(lock);
-        priceToIndexMap[price].index = index;
-        priceToIndexMap[price].isBid = isBid;
-        return true;
+        if(isBid) {
+            priceToIndexMapBids[price].index = index;
+            priceToIndexMapBids[price].isBid = isBid;
+        } else {
+            priceToIndexMapAsks[price].index = index;
+            priceToIndexMapAsks[price].isBid = isBid;
+        }
     }
 
-    bool removeEntry(double price) {
+    void removeEntry(double price,bool isBid) {
         AstraLib::Atomic::SpinlockGuard guard(lock);
-        priceToIndexMap.erase(price);
-        return true;
+        (isBid) ? priceToIndexMapBids.erase(price) : priceToIndexMapAsks.erase(price);
     }
 
-    bool clearMap() {
+    void clearMap() {
         AstraLib::Atomic::SpinlockGuard guard(lock);
-        priceToIndexMap.clear();
-        return true;
+        priceToIndexMapBids.clear();
+        priceToIndexMapAsks.clear();
     }
 
-    std::vector<IndexedBidAsk> returnAllIndexes(){
+    std::vector<IndexedBidAsk> returnAllIndexes(bool isBid){
         AstraLib::Atomic::SpinlockGuard guard(lock);
         std::vector<IndexedBidAsk> vec;
-        for (const auto& pair : priceToIndexMap ){
+        for (const auto& pair : (isBid) ? priceToIndexMapBids : priceToIndexMapAsks){
             vec.emplace_back(pair.second);
         }
         return vec;

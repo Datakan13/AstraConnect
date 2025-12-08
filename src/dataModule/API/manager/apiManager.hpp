@@ -29,8 +29,8 @@ class APIManager {
     std::string APIKey;
     std::string PrivateKey;
 
-    boost::asio::io_context& ioc;
-    boost::asio::ssl::context& ctx;
+    boost::asio::io_context ioc;
+    boost::asio::ssl::context ctx;
 
     ThreadSafeParser websocketParser;
     public:
@@ -47,8 +47,8 @@ class APIManager {
     class OrderStream;
 
     public:
-    APIManager(boost::asio::io_context& ioc_, boost::asio::ssl::context& ctx_) :
-    ioc(ioc_), ctx(ctx_) {
+    APIManager() :
+     ctx(boost::asio::ssl::context::sslv23) {
         APIKey = std::getenv("API_KEY");
         PrivateKey = std::getenv("PRIVATE_KEY");
     };

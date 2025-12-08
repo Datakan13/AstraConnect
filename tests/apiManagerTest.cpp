@@ -11,9 +11,7 @@ double setPrecision(double value, int decimals) {
 
 
 int main() {
-    boost::asio::io_context ioc;
-    boost::asio::ssl::context ctx(boost::asio::ssl::context::sslv23);
-    APIManager manager(ioc,ctx);
+    APIManager manager;
     APIManager::FuturesAPI futuresAPI(manager);
 
     /*

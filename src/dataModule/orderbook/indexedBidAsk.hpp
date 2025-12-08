@@ -8,5 +8,5 @@ struct IndexedBidAsk {
     IndexedBidAsk() {uninitilized = true;}
     IndexedBidAsk(bool isBid_,int64_t index_) : isBid(isBid_), index(index_) {uninitilized = false;}
     void operator=(IndexedBidAsk& in) {isBid = in.isBid; index = in.index; uninitilized = false;}
-    operator bool() {return uninitilized;}
+    operator bool() {return !uninitilized;}
 };

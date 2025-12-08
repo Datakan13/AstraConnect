@@ -30,11 +30,12 @@ class Orderbook {
 
     private:
     // Free index pool for depth entries
-    AstraLib::Pools::ThreadSafeIndexPool<8192> freeIndexPool;
+    AstraLib::Pools::ThreadSafeIndexPool<8192> freeIndexPoolBid;
+    AstraLib::Pools::ThreadSafeIndexPool<8192> freeIndexPoolAsk;
 
-    PriceValid getEntryWithPrice(double price,Entry& out) {
+    PriceValid getEntryWithPrice(double price,Entry& out,bool isBid) {
         AstraLib::Atomic::SpinlockGuard guard(updatingLock);
-        IndexedBidAsk ref = priceToIndexMap.returnIndexedBidAsk(price);
+        IndexedBidAsk ref = priceToIndexMap.returnIndexedBidAsk(price,isBid);
         if(ref) return PriceValid::NOT_VALID;
         out.price = bids[ref.index].price;
         out.volume = asks[ref.index].volume;
@@ -49,29 +50,43 @@ class Orderbook {
 
         try {
             // Check if entry exists
-            
-            if (priceToIndexMap.returnIndexedBidAsk(entry.price)) {
+            IndexedBidAsk indexedBidAsk = priceToIndexMap.returnIndexedBidAsk(entry.price,isBid);
+            if (!indexedBidAsk) {
                 isNewEntry = true;
-                index = freeIndexPool.getIndex();
+                if(isBid ){
+                    index = freeIndexPoolBid.getIndex();
+                } else {
+                    index = freeIndexPoolAsk.getIndex();
+                }
                 priceToIndexMap.addEntry(entry.price,index,isBid);
+            } else {
+                index = indexedBidAsk.index;
             }
 
             // If volume is non-zero, process normally
-            if (entry.volume != 0) {
+            if (entry.volume != 0) {    
                 auto& book = isBid ? bids : asks;
-
                 if (isNewEntry) {
                     book[index].assignValues(entry.price, entry.volume);
-                    
-                } else {
-                    
-                    book[index].price += entry.price;
+                    return;
+                } 
+                if(indexedBidAsk.isBid == isBid) {
                     book[index].volume += entry.volume;
+                } else {
+                    removeEntry(index,entry.price,indexedBidAsk.isBid);
+                    if(isBid ){
+                        index = freeIndexPoolBid.getIndex();
+                    } else {
+                        index = freeIndexPoolAsk.getIndex();
+                    }
+                    priceToIndexMap.addEntry(entry.price,index,isBid);
+                    book[index].assignValues(entry.price, entry.volume);
                 }
+                
 
             } else {
                 // Volume 0 = removal
-                removeEntry(index, entry.price);
+                removeEntry(index, entry.price,isBid);
             }
         } catch (std::runtime_error& e) {
             std::cout << e.what();
@@ -82,12 +97,17 @@ class Orderbook {
 
     private:
     // Removes an entry from both index map and requeues it
-    void removeEntry(int64_t& index, int64_t price) {
-        priceToIndexMap.removeEntry(price);
-        freeIndexPool.returnIndex(index);
+    void removeEntry(int64_t& index, int64_t price,bool isBid) {
+        priceToIndexMap.removeEntry(price,isBid);
+        if(isBid){
+            freeIndexPoolBid.returnIndex(index);
+        } else {
+            freeIndexPoolAsk.returnIndex(index);
+        }
     }
 
     FetchError applySnapshot() {
+        AstraLib::Atomic::SpinlockGuard guard(updatingLock);
         try {
             Entry lastEntry(1,1);
             while(lastEntry.price != 0) {
@@ -108,6 +128,7 @@ class Orderbook {
     }
 
     FetchError applyWebsocket(bool isFirst = true) {
+        AstraLib::Atomic::SpinlockGuard guard(updatingLock);
         // first update
         if(isFirst) {
             try {
@@ -231,6 +252,11 @@ class Orderbook {
         }
     }
     
+    void getFullOrderbook() {
+        AstraLib::Atomic::SpinlockGuard guard(updatingLock);
+        
+    }
+
     public:
     Orderbook(APIManager& base_,std::string pair_,APIManager::FuturesAPI& api) : pair(pair_),
     websocketStream(DecodeEntries,base_.hostFuturesWebsocket,"/stream?streams="+ pair_ +"@depth",base_.websocketParser),
