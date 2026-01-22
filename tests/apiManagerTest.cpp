@@ -14,7 +14,7 @@ int main() {
     APIManager manager;
     APIManager::FuturesAPI futuresAPI(manager);
 
-    /*
+
     AstraLib::Buffers::AtomicRingBuffer<Candle,2048> vec;
     AstraLib::Buffers::AtomicRingBuffer<OpenInterest,1024> vec2;
     AstraLib::Time::Timer timer;
@@ -24,9 +24,9 @@ int main() {
     APIManager::UserDataStreams::UserFuturesStream userDataStreamFuturesAPI(manager);
 
     APIManager::OrderStream orderStream(manager);
-      */
+
     Orderbook orderbook(manager,"ethusdc",futuresAPI);
-    /*
+
     PairInfo info;
     timer.start();
     futuresAPI.fetchExchangeInfoForPair("ETHUSDT",info);
@@ -163,6 +163,5 @@ int main() {
           << ", availableBalance: " << accountInfoHere.availableBalance
           << ", updateTime: " << accountInfoHere.updateTime
           << std::endl;
-      */
      std::this_thread::sleep_for(chrono::hours(3));
 }

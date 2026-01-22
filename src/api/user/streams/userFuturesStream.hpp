@@ -3,7 +3,6 @@
 #include "dataModule/API/manager/lambdaFunctions/userDataStreamClassCreation.hpp"
 #include "dataModule/API/APIError.hpp"
 
-// error handling DONE
 
 class APIManager::UserDataStreams::UserFuturesStream{
     StreamHolder userDataStreamAPI;

@@ -2,7 +2,7 @@
 #include "dataModule/API/manager/lambdaFunctions/markPriceCreation.hpp"
 #include "dataModule/API/manager/classDeclarations/websocketStreams/futures.hpp"
 #include <AstraLib/AstraLib.hpp>
-class APIManager::WebsocketStreams::Futures::MarkPriceStream{
+class APIManager::Futures::MarkPriceStream{
     const std::string pair;
     const std::string target = "/ws/"+pair+"@markPrice@1s";
 

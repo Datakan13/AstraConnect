@@ -2,7 +2,7 @@
 #include "dataModule/API/manager/classDeclarations/websocketStreams/futures.hpp"
 #include "dataModule/API/manager/lambdaFunctions/TradeEventCreation.hpp"
 
-class APIManager::WebsocketStreams::Futures::TradeEventStream{
+class APIManager::Futures::TradeEventStream{
         std::string pair;
         const std::string target = "/ws/"+ pair +"@trade";
         WebsocketStreamHolder<TradeEvent,decltype(TradeEventCreation)>* tradeEventStream;

@@ -2,7 +2,7 @@
 #include "dataModule/API/helperClasses/APIHelpers.hpp"
 #include "dataModule/API/helperClasses/placeOrderParameters.hpp"
 
-class APIManager::OrderStream{
+class APIManager::Futures::OrderStream{
     std::string target = "/ws-fapi/v1";
     WebsocketAPIStreamHolder orderStream;
     RequestParameter<std::string> APIKey;

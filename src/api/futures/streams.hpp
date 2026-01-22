@@ -9,4 +9,5 @@ class APIManager::WebsocketStreams::Futures{
 
     class MarkPriceStream;
 
+    class OrderStream;
 };
