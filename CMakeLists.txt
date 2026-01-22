@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(FastMoney CXX)
+project(AstraConnect CXX)
 set(CMAKE_BUILD_TYPE Debug)
 
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -mtune=native -flto=auto")
