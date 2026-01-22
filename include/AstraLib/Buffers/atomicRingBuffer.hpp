@@ -26,7 +26,6 @@ class AtomicRingBuffer {
     Slot<A> buffer[SIZE];
     AstraLib::Atomic::PaddedAtomic<int64_t> writeTicket{0};
     AstraLib::Atomic::PaddedAtomic<int64_t> readTicket{0};
-    AstraLib::Atomic::PaddedAtomic<bool> clearingQueue = true;
     private:
     void prepareBuffer(){
         for(int i = 0; i < SIZE;i++) {
@@ -47,9 +46,7 @@ class AtomicRingBuffer {
     A dequeue() {
         uint64_t ticket = readTicket.value.fetch_add(1,std::memory_order_acq_rel);
         int index = ticket & (SIZE - 1);
-        std::cout << ticket << std::endl;
         while(buffer[index].seq.load(std::memory_order_acquire) != ticket + 1) {
-            if(clearingQueue.value.load(std::memory_order_acquire)) return A();
             _mm_pause();
         }
         A data = std::move(buffer[index].data);
@@ -115,10 +112,8 @@ class AtomicRingBuffer {
     void clearBuffer(){
         writeTicket.value.store(0,std::memory_order_release);
         readTicket.value.store(0,std::memory_order_release);
-        clearingQueue.value.store(true);
         //Overwrites all the seq values so it's at the starting position again
         prepareBuffer();
-        clearingQueue.value.store(false);
     }
 
     // WARNING: To use this you need to assign your template as a ptr
