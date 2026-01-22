@@ -75,7 +75,6 @@ class SortedBook {
     ThreadSafeIndexMap priceToIndex;
 
     void addPriceLevel(double price, bool isBid) {
-
         priceToIndex.addEntry(price,(isBid) ? bidPool.getIndex() : askPool.getIndex(),isBid);
     }
     
