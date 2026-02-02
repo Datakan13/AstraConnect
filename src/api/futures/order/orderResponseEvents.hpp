@@ -1,9 +1,10 @@
 #pragma once
-#include "dataModule/enums/enumClassesForAllStreams.hpp"
-#include "dataModule/enums/helperFunctionsForEnumClasses.hpp"
-#include "simdjson.h"
+#include "api/common/enums/enumClassesForAllStreams.hpp"
+#include "api/common/enums/helperFunctionsForEnumClasses.hpp"
+#include <simdjson/simdjson.h>
 #include <AstraLib/AstraLib.hpp>
-#include "../error.hpp"
+#include "model/error.hpp"
+
 class RateLimit {
     public:
     RateLimitType type;

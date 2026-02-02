@@ -1,7 +1,7 @@
 #pragma once
-#include "simdjson.h"
-#include "dataModule/userDataStream/userDataStreamClass.hpp"
-#include "dataModule/userDataStream/userDataStreamFunctions.hpp"
+#include <simdjson/simdjson.h>
+#include "api/common/userData/userDataStreamClass.hpp"
+#include "api/common/userData/userDataStreamFunctions.hpp"
 
 // Check userDataStreamClass.hpp for request payloads and implementation functions
 auto UserDataStreamClassCreation = [](simdjson::padded_string& json, simdjson::ondemand::parser& parser) {

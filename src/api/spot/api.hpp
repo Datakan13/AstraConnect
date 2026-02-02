@@ -1,12 +1,12 @@
 #pragma once
-#include "dataModule/API/manager/apiManager.hpp"
-#include "dataModule/API/helperClasses/StreamHolder.hpp"
-#include "dataModule/threadSafeParser.hpp"
-#include "dataModule/API/APIError.hpp"
+#include "manager/apiManager.hpp"
+#include "core/streams/StreamHolder.hpp"
+#include "core/parsing/threadSafeParser.hpp"
+#include "api/common/error/APIError.hpp"
+#include "api/common/error/includeErrors.hpp"
+#include "model/candle.hpp"
 
-// error handling DONE
-
-class APIManager::SpotAPI{
+class APIManager::Spot::API{
         StreamHolder spot;
         ThreadSafeParser parserSpot;
         public:
@@ -92,6 +92,6 @@ class APIManager::SpotAPI{
             return FetchError(APIError::SUCCESS);
         }
 
-        SpotAPI(APIManager& base_) : spot(base_.ioc,base_.ctx,base_.hostSpot) {
+        API(APIManager& base_) : spot(base_.ioc,base_.ctx,base_.hostSpot) {
         }
     };

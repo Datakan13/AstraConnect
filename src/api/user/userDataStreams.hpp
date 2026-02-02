@@ -1,9 +1,9 @@
 #pragma once
-#include "dataModule/API/manager/apiManager.hpp"
+#include "manager/apiManager.hpp"
 
-class APIManager::UserDataStreams{
+class APIManager::User{
     public:
-    class UserFuturesStream;
+    class FuturesStream;
     //Incomplete
-    class UserSpotStream;
+    class SpotStream;
 };

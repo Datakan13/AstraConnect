@@ -1,16 +1,14 @@
 #pragma once
-#include "boost_include_helpers/includeBoost.hpp"
+#include "net/includeBoost.hpp"
 #include <AstraLib/AstraLib.hpp>
-#include "simdjson.h"
-#include "dataModule/dataTypes/requestParameter.hpp"
-#include "dataModule/threadSafeParser.hpp"
-
-// error handling DONE
+#include <simdjson/simdjson.h>
+#include "core/protocol/requestParameter.hpp"
+#include "core/parsing/threadSafeParser.hpp"
 
 // The first template is the data you want to keep e.g. TradeEvent 
 // The second template is your data construction function which must return your data type 
 // The second template should also accept simdjson::padded_string
-//e.g. [simdjson::padded_string json](){  TradeEvent event = json; return event; }
+// e.g. [simdjson::padded_string json](){  TradeEvent event = json; return event; }
 template<typename Data,typename Func>
 class WebsocketStreamHolder {
     net::io_context ioc;
@@ -64,7 +62,7 @@ class WebsocketStreamHolder {
         const int increasePerTry = 2;
         const int maxTryCount = 20;
         const int maxDelay = static_cast<int>(delay * std::pow(increasePerTry, maxTryCount));
-        chrono::milliseconds backoff(delay);
+        std::chrono::milliseconds backoff(delay);
         ConnectionStatus status;
         for(;;) {
             std::this_thread::sleep_for(backoff);

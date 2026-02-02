@@ -1,8 +1,9 @@
 #pragma once
-#include "dataModule/API/manager/apiManager.hpp"
+#include "manager/apiManager.hpp"
+#include "core/protocol/requestParameter.hpp"
+#include "api/common/enums/enumClassesForAllStreams.hpp"
 
-
-class APIManager::PlaceOrderParameters{
+class PlaceOrderParameters{
     public:
     RequestParameter<std::string> positionSide;
     RequestParameter<std::string> price;

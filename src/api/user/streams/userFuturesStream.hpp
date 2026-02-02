@@ -1,10 +1,16 @@
 #pragma once
-#include "dataModule/API/manager/classDeclarations/userDataStreams.hpp"
-#include "dataModule/API/manager/lambdaFunctions/userDataStreamClassCreation.hpp"
-#include "dataModule/API/APIError.hpp"
+#include "api/user/userDataStreams.hpp"
 
+#include "api/common/factory/userDataStreamClassCreation.hpp"
 
-class APIManager::UserDataStreams::UserFuturesStream{
+#include "api/common/error/APIError.hpp"
+#include "api/common/error/FetchError.hpp"
+
+#include "core/protocol/requestParameter.hpp"
+
+#include "core/streams/Streams.hpp"
+
+class APIManager::User::FuturesStream{
     StreamHolder userDataStreamAPI;
     WebsocketStreamHolder<UserDataStream,decltype(UserDataStreamClassCreation)>* userDataStreamWebsocket = nullptr;
     std::string APIKey;
@@ -71,7 +77,7 @@ class APIManager::UserDataStreams::UserFuturesStream{
         return ConnectionStatus::SUCCESS;
     }
 
-    UserFuturesStream(APIManager& base_) : userDataStreamAPI(base_.ioc,base_.ctx,base_.hostFutures),
+    FuturesStream(APIManager& base_) : userDataStreamAPI(base_.ioc,base_.ctx,base_.hostFutures),
         APIKey(base_.APIKey),
         listenKeyParameter("X-MBX-APIKEY",base_.APIKey), 
         requestId("X-Request-ID", boost::uuids::to_string(boost::uuids::random_generator()())),
@@ -108,9 +114,9 @@ class APIManager::UserDataStreams::UserFuturesStream{
             connecting.value.store(false,std::memory_order_release);
     }
 
-    ~UserFuturesStream() {
+    ~FuturesStream() {
         delete userDataStreamWebsocket;
-        std::cout << "I atleast destroyed the websocket" << std::endl;
+        std::cout << "I at least destroyed the websocket" << std::endl;
         deleteListenKey();
         std::cout << "Closed it all off" << std::endl;
     }

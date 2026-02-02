@@ -1,10 +1,10 @@
 #pragma once 
 #include <string>
 #include <vector>
-#include "dataModule/enums/enumClassesForAllStreams.hpp"
-#include "dataModule/enums/helperFunctionsForEnumClasses.hpp"
-#include "userDataStreamEvents.hpp"
-#include "simdjson.h"
+#include "api/common/enums/enumClassesForAllStreams.hpp"
+#include "api/common/enums/helperFunctionsForEnumClasses.hpp"
+#include "api/common/userData/userDataStreamEvents.hpp"
+#include <simdjson/simdjson.h>
 
 
 class UserDataStream {

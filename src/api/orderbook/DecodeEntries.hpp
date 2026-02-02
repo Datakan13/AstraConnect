@@ -1,7 +1,7 @@
 #pragma once
-#include "simdjson.h"
-#include "dataModule/dataTypes/Entry.hpp"
-#include "dataModule/orderbook/orderbookArrays.hpp"
+#include <simdjson/simdjson.h>
+#include "model/Entry.hpp"
+#include "api/orderbook/orderbookArrays.hpp"
 #include <AstraLib/AstraLib.hpp>
 
 auto DecodeEntries = [](simdjson::padded_string& json, simdjson::ondemand::parser& parser) {

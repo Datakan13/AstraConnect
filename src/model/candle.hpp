@@ -1,5 +1,5 @@
 #pragma once
-
+#include <cstdint>
 class Candle {
     public:
     int64_t timestampOpen;

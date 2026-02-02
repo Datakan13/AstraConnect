@@ -1,6 +1,6 @@
 #pragma once
 #include <AstraLib/AstraLib.hpp>
-#include "dataModule/dataTypes/Entry.hpp"
+#include "model/Entry.hpp"
 class OrderbookSnapshotIncoming {
     std::array<Entry,8192> bidArray;
     std::array<Entry,8192> askArray;

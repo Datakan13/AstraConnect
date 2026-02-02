@@ -1,31 +1,26 @@
-#include "dataModule/API/binanceAPI.hpp"
-#include "dataModule/dataTypes/includeAllDataTypes.hpp"
+#include "api/AstraConnect.hpp"
+#include <chrono>
 #include <vector>
 #include <AstraLib/AstraLib.hpp>
-#include "dataModule/enums/enumClassesForAllStreams.hpp"
-#include "dataModule/orderbook/orderbook.hpp"
 double setPrecision(double value, int decimals) {
     double factor = std::pow(10.0, decimals);
     return std::trunc(value * factor) / factor;
 }
 
-
 int main() {
     APIManager manager;
-    APIManager::FuturesAPI futuresAPI(manager);
-
-
+    APIManager::Futures::API futuresAPI(manager);
     AstraLib::Buffers::AtomicRingBuffer<Candle,2048> vec;
     AstraLib::Buffers::AtomicRingBuffer<OpenInterest,1024> vec2;
     AstraLib::Time::Timer timer;
-    APIManager::SpotAPI spotAPI(manager);
-    APIManager::WebsocketStreams::Futures::TradeEventStream tradeEventStream(manager , "ethusdc");
-    APIManager::WebsocketStreams::Futures::MarkPriceStream markPriceStream(manager,"ethusdc");
-    APIManager::UserDataStreams::UserFuturesStream userDataStreamFuturesAPI(manager);
+    APIManager::Spot::API spotAPI(manager);
+    APIManager::Futures::Streams::TradeEventStream tradeEventStream(manager , "ethusdc");
+    APIManager::Futures::Streams::MarkPriceStream markPriceStream(manager,"ethusdc");
+    APIManager::User::FuturesStream userDataStreamFuturesAPI(manager);
 
-    APIManager::OrderStream orderStream(manager);
+    APIManager::Futures::OrderStream orderStream(manager);
 
-    Orderbook orderbook(manager,"ethusdc",futuresAPI);
+    APIManager::Orderbook orderbook(manager,"ethusdc",futuresAPI);
 
     PairInfo info;
     timer.start();
@@ -163,5 +158,5 @@ int main() {
           << ", availableBalance: " << accountInfoHere.availableBalance
           << ", updateTime: " << accountInfoHere.updateTime
           << std::endl;
-     std::this_thread::sleep_for(chrono::hours(3));
+     std::this_thread::sleep_for(std::chrono::hours(3));
 }

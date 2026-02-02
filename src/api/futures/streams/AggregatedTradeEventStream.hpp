@@ -1,7 +1,7 @@
 #pragma once
-#include "dataModule/API/manager/classDeclarations/websocketStreams/futures.hpp"
+#include "api/futures/streams.hpp"
 
-class APIManager::Futures::AggregatedTradeEventStream{
+class APIManager::Futures::Streams::AggregatedTradeEventStream{
 
 
 };

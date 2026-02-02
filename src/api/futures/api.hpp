@@ -1,13 +1,18 @@
 #pragma once
-#include "dataModule/API/manager/apiManager.hpp"
-#include "dataModule/API/helperClasses/StreamHolder.hpp"
-#include "dataModule/threadSafeParser.hpp"
-#include "dataModule/API/APIError.hpp"
-#include "dataModule/dataTypes/exchangeInfo.hpp"
-#include "dataModule/API/helperClasses/orderbookSnapshotIncoming.hpp"
-// error handling DONE
+#include "manager/apiManager.hpp"
 
-class APIManager::FuturesAPI{
+#include "core/streams/StreamHolder.hpp"
+#include "core/parsing/threadSafeParser.hpp"
+
+#include "api/common/error/APIError.hpp"
+#include "api/common/error/FetchError.hpp"
+
+#include "model/exchangeInfo.hpp"
+#include "model/openInterest.hpp"
+
+#include "api/orderbook/orderbookSnapshotIncoming.hpp"
+
+class APIManager::Futures::API{
         StreamHolder futures;
         ThreadSafeParser parserFutures;
         public:
@@ -302,7 +307,7 @@ class APIManager::FuturesAPI{
             }
         }
 
-        FuturesAPI(APIManager& base_) : futures(base_.ioc,base_.ctx,base_.hostFutures){
+        API(APIManager& base_) : futures(base_.ioc,base_.ctx,base_.hostFutures){
         }
 
     };

@@ -1,9 +1,9 @@
 #pragma once
-#include "boost_include_helpers/includeBoost.hpp"
+#include "net/includeBoost.hpp"
 #include <AstraLib/AstraLib.hpp>
-#include "simdjson.h"
-#include "dataModule/dataTypes/requestParameter.hpp"
-#include "dataModule/error.hpp"
+#include <simdjson/simdjson.h>
+#include "core/protocol/requestParameter.hpp"
+#include "core/types/Status.hpp"
 
 // Error handling DONE
 
@@ -54,7 +54,7 @@ class StreamHolder {
     const int increasePerTry = 2;
     const int maxTryCount = 20;
     const int maxDelay = static_cast<int>(delay * std::pow(increasePerTry, maxTryCount));
-    chrono::milliseconds backoff(delay);
+    std::chrono::milliseconds backoff(delay);
     ConnectionStatus status;
     for(;;) {
         std::this_thread::sleep_for(backoff);
@@ -71,8 +71,7 @@ class StreamHolder {
     }
 
     public:
-
-
+    
     // Returns a simdjson::padded_string that can be iterated
     // Will throw runtime_error when boost cannot connect or fetch due to any problem
     auto sendRequest(const std::string& target, http::verb method = http::verb::get, bool keepAlive = true) {

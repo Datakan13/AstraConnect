@@ -1,5 +1,5 @@
 #pragma once
-#include "boost_include_helpers/beast_boost_includes.hpp"
+#include "net/boostPrelude.hpp"
 
 namespace boost {
     namespace beast {
@@ -21,6 +21,5 @@ namespace beast = boost::beast;
 namespace http = beast::http;
 namespace net = boost::asio;
 namespace ssl = net::ssl;
-using namespace boost::asio;
 
 using tcp = net::ip::tcp;

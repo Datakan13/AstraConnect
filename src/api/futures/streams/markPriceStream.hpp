@@ -1,8 +1,10 @@
 #pragma once
-#include "dataModule/API/manager/lambdaFunctions/markPriceCreation.hpp"
-#include "dataModule/API/manager/classDeclarations/websocketStreams/futures.hpp"
+#include "api/common/factory/markPriceCreation.hpp"
+#include "api/futures/streams.hpp"
+#include "core/streams/WebsocketStreamHolder.hpp"
+#include "core/types/Status.hpp"
 #include <AstraLib/AstraLib.hpp>
-class APIManager::Futures::MarkPriceStream{
+class APIManager::Futures::Streams::MarkPriceStream{
     const std::string pair;
     const std::string target = "/ws/"+pair+"@markPrice@1s";
 

@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 #include <openssl/hmac.h>
-
+#include <stdexcept>
 
 inline std::string hmac_sha256(const std::string& key, std::string data) {
     if(data.size() == 0) throw std::runtime_error("Parameter empty");

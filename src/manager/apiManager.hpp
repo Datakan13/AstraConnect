@@ -1,23 +1,12 @@
 #pragma once
-#include "boost_include_helpers/includeBoost.hpp"
+#include "net/includeBoost.hpp"
 #include <vector>
-#include "dataModule/dataTypes/candle.hpp"
-#include "simdjson.h"
-#include "dataModule/dataTypes/openInterest.hpp"
-#include "dataModule/API/helperClasses/APIHelpers.hpp"
-#include "dataModule/threadSafeParser.hpp"
-#include "dataModule/dataTypes/tradeEvent.hpp"
-#include "dataModule/dataTypes/markPrice.hpp"
-#include "dataModule/userDataStream/userDataStreamClass.hpp"
-#include "dataModule/userDataStream/userDataStreamFunctions.hpp"
 #include <utility>
 #include <AstraLib/AstraLib.hpp>
 #include <iostream>
 #include <fstream>
-#include "dataModule/dataTypes/requestParameter.hpp"
-#include "dataModule/orderTracker/orderTracker.hpp"
 #include <charconv>
-
+#include "core/parsing/threadSafeParser.hpp"
 
 class APIManager {
     public:
@@ -34,17 +23,21 @@ class APIManager {
 
     ThreadSafeParser websocketParser;
     public:
-    class SpotAPI;
+    class Futures{
+        public:
+        class API;
+        class Streams;
+        class OrderStream;
+    };
 
-    class FuturesAPI;
-    class WebsocketStreams;
+    class Spot{
+        public:
+        class API;
+    };
 
-    class UserDataStreams;
+    class Orderbook;
 
-    class PlaceOrderParameters;
-
-    // To use order responses and check out the data you sent use orderContext you can use a reference of it too
-    class OrderStream;
+    class User;
 
     public:
     APIManager() :

@@ -1,7 +1,6 @@
 #pragma once
-#include "simdjson.h"
-#include "dataModule/dataTypes/markPrice.hpp"
-
+#include <simdjson/simdjson.h>
+#include "model/markPrice.hpp"
 
 /*
     Payload example for mark price stream 

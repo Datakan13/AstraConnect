@@ -1,9 +1,9 @@
 #pragma once
-#include "dataModule/API/manager/classDeclarations/userDataStreams/userSpotStream.hpp"
-
+#include "api/user/userDataStreams.hpp"
+#include "core/streams/Streams.hpp"
 // incomplete just needs the same logic from userFuturesStream
 
-class APIManager::UserDataStreams::UserSpotStream{
+class APIManager::User::SpotStream{
     StreamHolder userDataStream;
     std::string APIKey;
     std::string listenKey;
@@ -22,7 +22,7 @@ class APIManager::UserDataStreams::UserSpotStream{
         doc.find_field("listenKey").get_string(listenKey,true);
     }
 
-    UserSpotStream(APIManager& base_) : userDataStream(base_.ioc,base_.ctx,base_.hostFutures), APIKey(base_.APIKey),listenKeyParameter("X-MBX-APIKEY",base_.APIKey){
+    SpotStream(APIManager& base_) : userDataStream(base_.ioc,base_.ctx,base_.hostFutures), APIKey(base_.APIKey),listenKeyParameter("X-MBX-APIKEY",base_.APIKey){
         
     }
 };

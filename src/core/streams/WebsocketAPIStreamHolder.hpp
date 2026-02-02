@@ -1,12 +1,11 @@
 #pragma once
-#include "boost_include_helpers/includeBoost.hpp"
+#include "net/includeBoost.hpp"
 #include <AstraLib/AstraLib.hpp>
-#include "simdjson.h"
-#include "dataModule/dataTypes/requestParameter.hpp"
-#include "dataModule/error.hpp"
-#include "dataModule/API/helperFunctions/hmac_sha256.hpp"
-
-// error handling DONE
+#include <simdjson/simdjson.h>
+#include "core/protocol/requestParameter.hpp"
+#include "core/types/Status.hpp"
+#include "utils/crypto/hmac_sha256.hpp"
+#include <chrono>
 
 class WebsocketAPIStreamHolder {
     net::io_context ioc;
@@ -52,7 +51,7 @@ class WebsocketAPIStreamHolder {
         const int increasePerTry = 2;
         const int maxTryCount = 20;
         const int maxDelay = static_cast<int>(delay * std::pow(increasePerTry, maxTryCount));
-        chrono::milliseconds backoff(delay);
+        std::chrono::milliseconds backoff(delay);
         ConnectionStatus status;
         for(;;) {
             std::this_thread::sleep_for(backoff);

@@ -1,13 +1,13 @@
 #pragma once 
 #include <string>
-#include "simdjson.h"
-#include "dataModule/enums/enumClassesForAllStreams.hpp"
-#include "dataModule/enums/helperFunctionsForEnumClasses.hpp"
+#include <simdjson/simdjson.h>
+#include "api/common/enums/enumClassesForAllStreams.hpp"
+#include "api/common/enums/helperFunctionsForEnumClasses.hpp"
 #include "orderResponseEvents.hpp"
 #include <AstraLib/AstraLib.hpp>
 #include <unordered_map>
 #include "orderClass.hpp"
-#include "dataModule/dataTypes/accountInfoLite.hpp"
+#include "model/accountInfoLite.hpp"
 enum class GotLock{
     GOT
 };

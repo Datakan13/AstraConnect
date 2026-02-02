@@ -1,18 +1,22 @@
 #pragma once
 #include <AstraLib/AstraLib.hpp>
-#include "dataModule/dataTypes/Entry.hpp"
-#include "dataModule/threadsafeIndexmap.hpp"
-#include "dataModule/API/helperClasses/orderbookSnapshotIncoming.hpp"
-#include "dataModule/error.hpp"
-#include "dataModule/API/binanceAPI.hpp"
-#include "dataModule/orderbook/orderbookArrays.hpp"
-#include "dataModule/orderbook/DecodeEntries.hpp"
+#include "model/Entry.hpp"
+#include "api/orderbook/threadsafeIndexmap.hpp"
+#include "api/orderbook/orderbookSnapshotIncoming.hpp"
+#include "model/error.hpp"
+#include "api/orderbook/orderbookArrays.hpp"
+#include "api/orderbook/DecodeEntries.hpp"
+#include "core/streams/WebsocketStreamHolder.hpp"
+#include "manager/apiManager.hpp"
+#include "api/futures/api.hpp"
+#include "api/common/error/includeErrors.hpp"
+#include "core/types/Status.hpp"
 
 
-class Orderbook {
+class APIManager::Orderbook {
     WebsocketStreamHolder<OrderbookArrays,decltype(DecodeEntries)> websocketStream;
     OrderbookSnapshotIncoming orderbookSnapshot;
-    APIManager::FuturesAPI& futuresApi;
+    APIManager::Futures::API& futuresApi;
     AstraLib::Atomic::Spinlock updatingLock;
     std::thread thread;
     std::string pair;
@@ -24,7 +28,6 @@ class Orderbook {
     char pad0[64];
     alignas(64) std::array<Entry, 8192> asks;
     
-
     // Maps price -> array index
     ThreadSafeIndexMap priceToIndexMap;
 
@@ -258,7 +261,7 @@ class Orderbook {
     }
 
     public:
-    Orderbook(APIManager& base_,std::string pair_,APIManager::FuturesAPI& api) : pair(pair_),
+    Orderbook(APIManager& base_,std::string pair_,APIManager::Futures::API& api) : pair(pair_),
     websocketStream(DecodeEntries,base_.hostFuturesWebsocket,"/stream?streams="+ pair_ +"@depth",base_.websocketParser),
     futuresApi(api){
         thread = std::thread(&Orderbook::executionLoop,this);

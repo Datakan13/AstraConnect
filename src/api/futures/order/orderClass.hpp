@@ -1,8 +1,8 @@
 #pragma once
-#include "dataModule/enums/enumClassesForAllStreams.hpp"
+#include "api/common/enums/enumClassesForAllStreams.hpp"
 #include "orderResponseEvents.hpp"
 #include <AstraLib/AstraLib.hpp>
-#include "orderSentEvents.hpp"
+#include "api/futures/order/orderSentEvents.hpp"
 class Order {
     public:
     AstraLib::Atomic::Spinlock lock;

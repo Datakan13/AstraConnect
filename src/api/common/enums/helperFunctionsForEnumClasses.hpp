@@ -1,5 +1,5 @@
 #pragma once
-#include "enumClassesForAllStreams.hpp"
+#include "api/common/enums/enumClassesForAllStreams.hpp"
 #include <stdexcept>
 
 inline EventType returnEventType(const std::string& requested) {

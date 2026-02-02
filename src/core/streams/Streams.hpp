@@ -1,7 +1,7 @@
 #pragma once
-#include "StreamHolder.hpp"
-#include "WebsocketAPIStreamHolder.hpp"
-#include "WebsocketStreamHolder.hpp"
+#include "core/streams/StreamHolder.hpp"
+#include "core/streams/WebsocketAPIStreamHolder.hpp"
+#include "core/streams/WebsocketStreamHolder.hpp"
 
 
 

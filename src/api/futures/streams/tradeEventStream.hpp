@@ -1,8 +1,10 @@
 #pragma once
-#include "dataModule/API/manager/classDeclarations/websocketStreams/futures.hpp"
-#include "dataModule/API/manager/lambdaFunctions/TradeEventCreation.hpp"
+#include "api/futures/streams.hpp"
+#include "core/streams/WebsocketStreamHolder.hpp"
+#include "core/types/Status.hpp"
+#include "api/common/factory/TradeEventCreation.hpp"
 
-class APIManager::Futures::TradeEventStream{
+class APIManager::Futures::Streams::TradeEventStream{
         std::string pair;
         const std::string target = "/ws/"+ pair +"@trade";
         WebsocketStreamHolder<TradeEvent,decltype(TradeEventCreation)>* tradeEventStream;

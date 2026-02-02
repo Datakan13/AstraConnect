@@ -3,22 +3,24 @@
 #include "manager/apiManager.hpp"
 
 // Futures API 
-#include "manager/classDeclarations/futuresAPI.hpp"
+#include "api/futures/api.hpp"
+
+// Futures streams
+#include "api/futures/streams.hpp"
+#include "api/futures/streams/AggregatedTradeEventStream.hpp"
+#include "api/futures/streams/markPriceStream.hpp"
+#include "api/futures/streams/tradeEventStream.hpp"
 
 // Order Stream
-#include "manager/classDeclarations/OrderStream.hpp"
+#include "api/futures/order/OrderStream.hpp"
 
 // Spot API
-#include "manager/classDeclarations/spotAPI.hpp"
+#include "api/spot/api.hpp"
 
 // User data streams
-#include "manager/classDeclarations/userDataStreams.hpp"
-#include "manager/classDeclarations/userDataStreams/userFuturesStream.hpp"
-#include "manager/classDeclarations/userDataStreams/userSpotStream.hpp"
+#include "api/user/userDataStreams.hpp"
+#include "api/user/streams/userFuturesStream.hpp"
+#include "api/user/streams/userSpotStream.hpp"
 
-// Websocket streams
-#include "manager/classDeclarations/websocketStreams.hpp"
-#include "manager/classDeclarations/websocketStreams/futures.hpp"
-#include "manager/classDeclarations/websocketStreams/futuresStreams/AggregatedTradeEventStream.hpp"
-#include "manager/classDeclarations/websocketStreams/futuresStreams/markPriceStream.hpp"
-#include "manager/classDeclarations/websocketStreams/futuresStreams/tradeEventStream.hpp"
+// Orderbook
+#include "api/orderbook/orderbook.hpp"
