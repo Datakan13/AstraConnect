@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <AstraLib/AstraLib.hpp>
 #include "api/orderbook/threadsafeIndexmap.hpp"
-
+#include <cmath>
 class PriceLevel {
     AstraLib::Atomic::Spinlock spinlock;
     double priceLevelBase;
@@ -26,9 +26,10 @@ class PriceLevel {
     double bitToPrice(int bit,bool isUpper) {
         return isUpper ? tickRate*bit + priceLevelBase : tickRate*(bit+64) + priceLevelBase;
     }
+
     public:
     void flipPriceBit(double price,bool wantedState) {
-        int baseBit = (price-priceLevelBase)/tickRate;
+        int baseBit = std::llround((price-priceLevelBase)/tickRate);
         if(baseBit >= 64) {
             flipBit(baseBit-64,lowerPrices,wantedState);
         } else {
@@ -37,6 +38,7 @@ class PriceLevel {
     }
 
     // give a vector to get price levels until output vector is filled to given count or no more price exists
+    // WARNING: If used before initializing OR clearing the level it will result in undefined behaviour due to clzll
     void findTopOfLevel(int count, std::vector<double>& outVec) {
         AstraLib::Atomic::SpinlockGuard guard(spinlock);
         uint64_t copy = upperPrices;
@@ -55,11 +57,13 @@ class PriceLevel {
         }
     }
     
-    // Accepted format is double price, bool wantedState
+    // Accepted format is std::pair<double,bool> with intention double price, bool wantedState
+    // Accepts both a single price level for entry and multiple
     template<typename... Args>
-    void modifyPriceLevels(Args... args) {
+    void modifyPriceLevels(Args&&... args) {
         AstraLib::Atomic::SpinlockGuard guard(spinlock);
-        ((flipPriceBit(args)),...);
+        ((flipPriceBit(args.first,args.second)),...);
+        std::cout << "upper: " << upperPrices << " lower: " << lowerPrices << std::endl;
     }
 
     PriceLevel(double priceLevelBase_, double tickRate_) : priceLevelBase(priceLevelBase_), tickRate(tickRate_) {}

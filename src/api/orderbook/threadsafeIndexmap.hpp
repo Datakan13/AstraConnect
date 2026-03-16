@@ -14,7 +14,7 @@ class alignas(64) ThreadSafeIndexMap{
     
     public:
     IndexedBidAsk returnIndexedBidAsk(double price,bool isBid) {
-        // default indexedBidAsk returns false
+        // default indexedBidAsk class is initalized false for valid IndexedBidAsk
         if(!contains(price,isBid)) return IndexedBidAsk();
 
         IndexedBidAsk result = (isBid) ? priceToIndexMapBids[price] : priceToIndexMapAsks[price];

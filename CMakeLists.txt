@@ -31,3 +31,11 @@ target_link_libraries(apiTest PRIVATE
 target_link_libraries(apiTest PRIVATE
     libraries)
 target_link_libraries(apiTest PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+
+add_executable(topBookTest ${CMAKE_SOURCE_DIR}/tests/topBookTest.cpp)
+target_include_directories(topBookTest PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+)
+target_link_libraries(topBookTest PRIVATE
+    libraries
+)
