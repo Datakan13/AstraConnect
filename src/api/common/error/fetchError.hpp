@@ -1,5 +1,5 @@
 #pragma once 
-#include "api/common/error/APIError.hpp"
+#include "api/common/error/apiError.hpp"
 #include <string>
 #include <memory>
 #include <simdjson/simdjson.h>
@@ -16,7 +16,7 @@ class FetchError {
 
     // Returns the reference to the msg
     // Be careful about lifetime of FetchError class if it is out of scope you will get a segmentation fault
-    // Use as soon as you called if you need to hold onto the message create a copy
+    // Use as soon as you called else if you need to hold onto the message create a copy
     std::string& getErrorMsgUnsafe() {
         if(msg) return *msg;
         msg = std::make_unique<std::string>("");
@@ -26,14 +26,14 @@ class FetchError {
     constexpr bool getError() const noexcept { return error != APIError::SUCCESS; }
     constexpr explicit operator bool() const noexcept { return error != APIError::SUCCESS;}
 
-    FetchError(APIError error_, std::string& str) : error(error_) {
+    FetchError(APIError error_,const std::string& str) : error(error_) {
         msg = std::make_unique<std::string>(str);
     }
     FetchError(APIError error_, std::string&& str) : error(error_) {
         msg = std::make_unique<std::string>(std::move(str));
     }
 
-    FetchError(int& errorCode_, std::string& str) {
+    FetchError(int errorCode_, std::string& str) {
         error = fromErrorCode(errorCode_);
         msg = std::make_unique<std::string>(str);
     }

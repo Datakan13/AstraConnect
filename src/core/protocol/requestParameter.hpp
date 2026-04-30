@@ -58,7 +58,6 @@ std::string makeRequestFromRequestParameters(Args&&... requestParameters) {
             std::string json = "{";
             bool first = true;
 
-            // Expand the pack and concatenate results
             (([&] {
                 if (!first) json += ", ";
                 else first = false;

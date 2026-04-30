@@ -17,7 +17,7 @@
         "M": true           // Ignore
     }
 */
-auto TradeEventCreation = [](simdjson::padded_string& json,simdjson::ondemand::parser& parser){
+auto parseTradeEvent = [](simdjson::padded_string& json,simdjson::ondemand::parser& parser){
     TradeEvent tradeOut;
     
     auto tradeEvent = parser.iterate(json);

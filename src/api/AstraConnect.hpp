@@ -7,12 +7,12 @@
 
 // Futures streams
 #include "api/futures/streams.hpp"
-#include "api/futures/streams/AggregatedTradeEventStream.hpp"
+#include "api/futures/streams/aggregatedTradeEventStream.hpp"
 #include "api/futures/streams/markPriceStream.hpp"
 #include "api/futures/streams/tradeEventStream.hpp"
 
 // Order Stream
-#include "api/futures/order/OrderStream.hpp"
+#include "api/futures/order/orderStream.hpp"
 
 // Spot API
 #include "api/spot/api.hpp"

@@ -1,5 +1,9 @@
 #pragma once
 #include <string>
+// api_error.hpp
+//
+// Exchange API error codes and mapping from integer codes to APIError enum.
+// Unknown codes map to APIError::UNKNOWN.
 
 enum class APIError : int {
     SUCCESS                     = 0,

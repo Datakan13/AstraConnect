@@ -1,18 +1,18 @@
 #pragma once
 #include "api/user/userDataStreams.hpp"
 
-#include "api/common/factory/userDataStreamClassCreation.hpp"
+#include "api/common/factory/userDataStreamFactory.hpp"
 
-#include "api/common/error/APIError.hpp"
-#include "api/common/error/FetchError.hpp"
+#include "api/common/error/apiError.hpp"
+#include "api/common/error/fetchError.hpp"
 
 #include "core/protocol/requestParameter.hpp"
 
-#include "core/streams/Streams.hpp"
+#include "core/streams/streams.hpp"
 
 class APIManager::User::FuturesStream{
     StreamHolder userDataStreamAPI;
-    WebsocketStreamHolder<UserDataStream,decltype(UserDataStreamClassCreation)>* userDataStreamWebsocket = nullptr;
+    WebsocketStreamHolder<UserDataStream,decltype(parseUserDataStream)>* userDataStreamWebsocket = nullptr;
     std::string APIKey;
     std::string listenKey;
     simdjson::ondemand::parser parser;
@@ -96,8 +96,8 @@ class APIManager::User::FuturesStream{
             std::atomic_thread_fence(std::memory_order_seq_cst);
             if(listenKey == "") throw std::runtime_error("Listen key could not be retrived");
             std::string websocketTarget = "/ws/" + listenKey;
-            userDataStreamWebsocket = new WebsocketStreamHolder<UserDataStream,decltype(UserDataStreamClassCreation)>(
-                UserDataStreamClassCreation,
+            userDataStreamWebsocket = new WebsocketStreamHolder<UserDataStream,decltype(parseUserDataStream)>(
+                parseUserDataStream,
                 base_.hostFuturesWebsocket,
                 websocketTarget,
                 base_.websocketParser);

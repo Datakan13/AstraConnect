@@ -1,6 +1,15 @@
 #pragma once
-#include "api/common/enums/enumClassesForAllStreams.hpp"
+#include "api/common/enums/commonTypes.hpp"
 #include <stdexcept>
+// helperFunctionsForEnumClasses.hpp
+//
+// Maps exchange strings to internal enums.
+//
+// Error handling:
+// - Most functions throw on unknown values
+// - Some return defaults instead:
+//     - TimeInForce → GTC
+//     - RateLimitType / IntervalRateLimit → UNKNOWN
 
 inline EventType returnEventType(const std::string& requested) {
     if (requested == "ACCOUNT_UPDATE")           return EventType::ACCOUNT_UPDATE;

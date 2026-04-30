@@ -1,10 +1,10 @@
 #pragma once
 #include <simdjson/simdjson.h>
-#include "api/common/userData/userDataStreamClass.hpp"
-#include "api/common/userData/userDataStreamFunctions.hpp"
+#include "api/common/userData/userDataStream.hpp"
+#include "api/common/userData/userDataStreamParsers.hpp"
 
 // Check userDataStreamClass.hpp for request payloads and implementation functions
-auto UserDataStreamClassCreation = [](simdjson::padded_string& json, simdjson::ondemand::parser& parser) {
+auto parseUserDataStream = [](simdjson::padded_string& json, simdjson::ondemand::parser& parser) {
     auto doc = parser.iterate(json);
     std::string type;
     doc["e"].get_string(type);

@@ -1,5 +1,5 @@
 #pragma once
-#include "api/common/enums/enumClassesForAllStreams.hpp"
+#include "api/common/enums/commonTypes.hpp"
 class OrderSent {
     public:
     int64_t timestamp;

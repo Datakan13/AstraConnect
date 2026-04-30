@@ -3,8 +3,8 @@
 #include <AstraLib/AstraLib.hpp>
 #include <simdjson/simdjson.h>
 #include "core/protocol/requestParameter.hpp"
-#include "core/types/Status.hpp"
-#include "utils/crypto/hmac_sha256.hpp"
+#include "core/types/status.hpp"
+#include "utils/crypto/hmacSha256.hpp"
 #include <chrono>
 
 class WebsocketAPIStreamHolder {

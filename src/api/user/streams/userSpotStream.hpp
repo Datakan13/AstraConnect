@@ -1,6 +1,6 @@
 #pragma once
 #include "api/user/userDataStreams.hpp"
-#include "core/streams/Streams.hpp"
+#include "core/streams/streams.hpp"
 // incomplete just needs the same logic from userFuturesStream
 
 class APIManager::User::SpotStream{

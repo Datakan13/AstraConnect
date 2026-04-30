@@ -16,7 +16,7 @@
     "T": 1562306400000       	// Next funding time
   }
 */
-auto MarkPriceCreation = [](simdjson::padded_string& json, simdjson::ondemand::parser& parser) {
+auto parseMarkPrice = [](simdjson::padded_string& json, simdjson::ondemand::parser& parser) {
     MarkPrice out;
 
     auto iterate = parser.iterate(json);

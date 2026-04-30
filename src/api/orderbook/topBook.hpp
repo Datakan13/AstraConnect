@@ -2,8 +2,9 @@
 #include <array>
 #include <cstdint>
 #include <AstraLib/AstraLib.hpp>
-#include "api/orderbook/threadsafeIndexmap.hpp"
+#include "api/orderbook/threadSafeIndexMap.hpp"
 #include <cmath>
+
 class PriceLevel {
     AstraLib::Atomic::Spinlock spinlock;
     double priceLevelBase;
@@ -38,7 +39,7 @@ class PriceLevel {
     }
 
     // give a vector to get price levels until output vector is filled to given count or no more price exists
-    // WARNING: If used before initializing OR clearing the level it will result in undefined behaviour due to clzll
+    // WARNING: If used before initializing OR after clearing the level it will result in undefined behaviour due to clzll
     void findTopOfLevel(int count, std::vector<double>& outVec) {
         AstraLib::Atomic::SpinlockGuard guard(spinlock);
         uint64_t copy = upperPrices;
@@ -59,11 +60,11 @@ class PriceLevel {
     
     // Accepted format is std::pair<double,bool> with intention double price, bool wantedState
     // Accepts both a single price level for entry and multiple
+    // WARNING: Assumes given price is inside this price level's range
     template<typename... Args>
     void modifyPriceLevels(Args&&... args) {
         AstraLib::Atomic::SpinlockGuard guard(spinlock);
         ((flipPriceBit(args.first,args.second)),...);
-        std::cout << "upper: " << upperPrices << " lower: " << lowerPrices << std::endl;
     }
 
     PriceLevel(double priceLevelBase_, double tickRate_) : priceLevelBase(priceLevelBase_), tickRate(tickRate_) {}

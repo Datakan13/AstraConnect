@@ -3,7 +3,7 @@
 #include <AstraLib/AstraLib.hpp>
 #include <simdjson/simdjson.h>
 #include "core/protocol/requestParameter.hpp"
-#include "core/types/Status.hpp"
+#include "core/types/status.hpp"
 
 // Error handling DONE
 

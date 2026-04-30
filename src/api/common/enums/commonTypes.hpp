@@ -1,5 +1,11 @@
 #pragma once
 #include <string>
+// commonTypes.hpp
+//
+// Core domain types for exchange interaction:
+// - enums representing exchange states/events
+// - lightweight data structs (balances, positions)
+
 
 enum class OrderTypeSent {
     NEW,
@@ -145,8 +151,6 @@ enum class OpCode : int {
     POSITION_EMPTY_OR_LIQUIDATED = 8015    // 8015: User position empty or liquidated
 };
 
-
-
 enum class ExpireReason {
     NONE,           //None, the default value
     EXPIRED_SAVE,    //Order has expired to prevent users from inadvertently trading against themselves
@@ -173,8 +177,6 @@ enum class StrategyType {
     CUSTOM                // Custom or user-defined strategy
 };
 
-
-
 enum class EventType {
     ACCOUNT_UPDATE,
     MARGIN_CALL,
@@ -185,6 +187,7 @@ enum class EventType {
     GRID_UPDATE,
     CONDITIONAL_ORDER_REJECT
 };
+
 
 class AssetBalance {
     public:

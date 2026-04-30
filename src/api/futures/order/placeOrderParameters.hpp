@@ -1,7 +1,7 @@
 #pragma once
 #include "manager/apiManager.hpp"
 #include "core/protocol/requestParameter.hpp"
-#include "api/common/enums/enumClassesForAllStreams.hpp"
+#include "api/common/enums/commonTypes.hpp"
 
 class PlaceOrderParameters{
     public:

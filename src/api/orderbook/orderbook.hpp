@@ -1,16 +1,16 @@
 #pragma once
 #include <AstraLib/AstraLib.hpp>
-#include "model/Entry.hpp"
-#include "api/orderbook/threadsafeIndexmap.hpp"
+#include "model/entry.hpp"
+#include "api/orderbook/threadSafeIndexMap.hpp"
 #include "api/orderbook/orderbookSnapshotIncoming.hpp"
 #include "model/error.hpp"
 #include "api/orderbook/orderbookArrays.hpp"
-#include "api/orderbook/DecodeEntries.hpp"
-#include "core/streams/WebsocketStreamHolder.hpp"
+#include "api/orderbook/decodeEntries.hpp"
+#include "core/streams/websocketStreamHolder.hpp"
 #include "manager/apiManager.hpp"
 #include "api/futures/api.hpp"
 #include "api/common/error/includeErrors.hpp"
-#include "core/types/Status.hpp"
+#include "core/types/status.hpp"
 
 
 class APIManager::Orderbook {

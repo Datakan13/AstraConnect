@@ -1,3 +1,3 @@
 #pragma once
-#include "api/common/error/APIError.hpp"
-#include "api/common/error/FetchError.hpp"
+#include "api/common/error/apiError.hpp"
+#include "api/common/error/fetchError.hpp"

@@ -1,6 +1,6 @@
 #pragma once
-#include "api/common/enums/enumClassesForAllStreams.hpp"
-#include "api/common/enums/helperFunctionsForEnumClasses.hpp"
+#include "api/common/enums/commonTypes.hpp"
+#include "api/common/enums/toEnum.hpp"
 #include <simdjson/simdjson.h>
 #include <AstraLib/AstraLib.hpp>
 #include "model/error.hpp"

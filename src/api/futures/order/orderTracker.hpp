@@ -1,8 +1,8 @@
 #pragma once 
 #include <string>
 #include <simdjson/simdjson.h>
-#include "api/common/enums/enumClassesForAllStreams.hpp"
-#include "api/common/enums/helperFunctionsForEnumClasses.hpp"
+#include "api/common/enums/commonTypes.hpp"
+#include "api/common/enums/toEnum.hpp"
 #include "orderResponseEvents.hpp"
 #include <AstraLib/AstraLib.hpp>
 #include <unordered_map>

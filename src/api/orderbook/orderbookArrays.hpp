@@ -1,7 +1,7 @@
 #pragma once
 #include <array>
 #include <AstraLib/AstraLib.hpp>
-#include "model/Entry.hpp"
+#include "model/entry.hpp"
 
 class OrderbookArrayHolder {
     std::array<std::array<Entry,8192>,128> bidArrays;

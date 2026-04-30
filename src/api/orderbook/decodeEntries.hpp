@@ -1,6 +1,6 @@
 #pragma once
 #include <simdjson/simdjson.h>
-#include "model/Entry.hpp"
+#include "model/entry.hpp"
 #include "api/orderbook/orderbookArrays.hpp"
 #include <AstraLib/AstraLib.hpp>
 

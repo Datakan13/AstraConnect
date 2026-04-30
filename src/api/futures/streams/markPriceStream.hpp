@@ -1,14 +1,14 @@
 #pragma once
-#include "api/common/factory/markPriceCreation.hpp"
+#include "api/common/factory/markPriceFactory.hpp"
 #include "api/futures/streams.hpp"
-#include "core/streams/WebsocketStreamHolder.hpp"
-#include "core/types/Status.hpp"
+#include "core/streams/websocketStreamHolder.hpp"
+#include "core/types/status.hpp"
 #include <AstraLib/AstraLib.hpp>
 class APIManager::Futures::Streams::MarkPriceStream{
     const std::string pair;
     const std::string target = "/ws/"+pair+"@markPrice@1s";
 
-    WebsocketStreamHolder<MarkPrice, decltype(MarkPriceCreation)>* markPriceStream;
+    WebsocketStreamHolder<MarkPrice, decltype(parseMarkPrice)>* markPriceStream;
     AstraLib::Atomic::PaddedAtomic<bool> connected = false;
     AstraLib::Atomic::PaddedAtomic<bool> connecting = true;
     public:
@@ -28,8 +28,8 @@ class APIManager::Futures::Streams::MarkPriceStream{
         try {
 
             markPriceStream = new 
-            WebsocketStreamHolder<MarkPrice,decltype(MarkPriceCreation)>
-            (MarkPriceCreation,base_.hostFuturesWebsocket,target,base_.websocketParser);
+            WebsocketStreamHolder<MarkPrice,decltype(parseMarkPrice)>
+            (parseMarkPrice,base_.hostFuturesWebsocket,target,base_.websocketParser);
             ConnectionStatus status = markPriceStream->getStatus();
             if(status == ConnectionStatus::SUCCESS) {
                 connected.value.store(true,std::memory_order_release);

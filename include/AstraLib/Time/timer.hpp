@@ -16,7 +16,7 @@ class Timer {
 private:
     unsigned aux;
     unsigned eax, ebx, ecx, edx;
-    int64_t startTime;
+    uint64_t startTime;
     double ghz;
 
     void setGHz() {
@@ -37,9 +37,9 @@ public:
     }
 
     void write(const std::string& label = "Timer") {
-        int64_t endTime = __rdtscp(&aux);
+        uint64_t endTime = __rdtscp(&aux);
         __cpuid(0, eax, ebx, ecx, edx);
-        int64_t cycles = endTime - startTime;
+        uint64_t cycles = endTime - startTime;
 
         double ns = cycles / ghz;       // convert cycles → nanoseconds
         double us = ns / 1000.0;        // also microseconds

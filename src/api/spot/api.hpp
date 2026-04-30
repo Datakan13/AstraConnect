@@ -1,8 +1,8 @@
 #pragma once
 #include "manager/apiManager.hpp"
-#include "core/streams/StreamHolder.hpp"
+#include "core/streams/streamHolder.hpp"
 #include "core/parsing/threadSafeParser.hpp"
-#include "api/common/error/APIError.hpp"
+#include "api/common/error/apiError.hpp"
 #include "api/common/error/includeErrors.hpp"
 #include "model/candle.hpp"
 
