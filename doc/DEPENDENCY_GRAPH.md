@@ -94,15 +94,14 @@ Wires together the Boost includes, error hierarchy, enum conversion, data factor
 
 ```mermaid
 graph LR
-    classDef found fill:#f0f0f0,stroke:#aaa
 
-    BP(boostPrelude.hpp):::found
-    AE(apiError.hpp):::found
-    CT(commonTypes.hpp):::found
-    IBA(indexedBidAsk.hpp):::found
-    EN(entry.hpp):::found
-    TR(tradeEvent.hpp):::found
-    MP(markPrice.hpp):::found
+    BP(boostPrelude.hpp)
+    AE(apiError.hpp)
+    CT(commonTypes.hpp)
+    IBA(indexedBidAsk.hpp)
+    EN(entry.hpp)
+    TR(tradeEvent.hpp)
+    MP(markPrice.hpp)
 
     BG[boostGlue.hpp]                  --> BP
     IB[includeBoost.hpp]               --> BP
@@ -149,18 +148,17 @@ Establishes WebSocket connection holders, the API manager, and the user data str
 
 ```mermaid
 graph LR
-    classDef found fill:#f0f0f0,stroke:#aaa
 
-    IB(includeBoost.hpp):::found
-    RP(requestParameter.hpp):::found
-    ST(status.hpp):::found
-    TP(threadSafeParser.hpp):::found
-    HM(hmacSha256.hpp):::found
-    CT(commonTypes.hpp):::found
-    TE(toEnum.hpp):::found
-    USE(userDataStreamEvents.hpp):::found
-    ER(model/error.hpp):::found
-    TSI(threadSafeIndexMap.hpp):::found
+    IB(includeBoost.hpp)
+    RP(requestParameter.hpp)
+    ST(status.hpp)
+    TP(threadSafeParser.hpp)
+    HM(hmacSha256.hpp)
+    CT(commonTypes.hpp)
+    TE(toEnum.hpp)
+    USE(userDataStreamEvents.hpp)
+    ER(model/error.hpp)
+    TSI(threadSafeIndexMap.hpp)
 
     SH[streamHolder.hpp]               --> IB
     SH                                 --> RP
@@ -201,17 +199,16 @@ Composes the stream infrastructure into usable objects and builds the order and 
 
 ```mermaid
 graph LR
-    classDef found fill:#f0f0f0,stroke:#aaa
 
-    SH(streamHolder.hpp):::found
-    WSH(websocketStreamHolder.hpp):::found
-    WAPI(websocketAPIStreamHolder.hpp):::found
-    UDS(userDataStream.hpp):::found
-    CT(commonTypes.hpp):::found
-    ORE(orderResponseEvents.hpp):::found
-    OSE(orderSentEvents.hpp):::found
-    MGR(apiManager.hpp):::found
-    RP(requestParameter.hpp):::found
+    SH(streamHolder.hpp)
+    WSH(websocketStreamHolder.hpp)
+    WAPI(websocketAPIStreamHolder.hpp)
+    UDS(userDataStream.hpp)
+    CT(commonTypes.hpp)
+    ORE(orderResponseEvents.hpp)
+    OSE(orderSentEvents.hpp)
+    MGR(apiManager.hpp)
+    RP(requestParameter.hpp)
 
     STR[streams.hpp]               --> SH
     STR                            --> WAPI
@@ -247,28 +244,27 @@ The main per-market API files and all active stream implementations. This is the
 
 ```mermaid
 graph LR
-    classDef found fill:#f0f0f0,stroke:#aaa
 
-    MGR(apiManager.hpp):::found
-    SH(streamHolder.hpp):::found
-    TP(threadSafeParser.hpp):::found
-    AE(apiError.hpp):::found
-    FE(fetchError.hpp):::found
-    IE(includeErrors.hpp):::found
-    EI(exchangeInfo.hpp):::found
-    OI(openInterest.hpp):::found
-    OBS(orderbookSnapshotIncoming.hpp):::found
-    CN(candle.hpp):::found
-    CT(commonTypes.hpp):::found
-    TE(toEnum.hpp):::found
-    OC(orderClass.hpp):::found
-    ORE(orderResponseEvents.hpp):::found
-    AI(accountInfoLite.hpp):::found
-    FS(futures/streams.hpp):::found
-    WSH(websocketStreamHolder.hpp):::found
-    ST(status.hpp):::found
-    TF(tradeEventFactory.hpp):::found
-    MF(markPriceFactory.hpp):::found
+    MGR(apiManager.hpp)
+    SH(streamHolder.hpp)
+    TP(threadSafeParser.hpp)
+    AE(apiError.hpp)
+    FE(fetchError.hpp)
+    IE(includeErrors.hpp)
+    EI(exchangeInfo.hpp)
+    OI(openInterest.hpp)
+    OBS(orderbookSnapshotIncoming.hpp)
+    CN(candle.hpp)
+    CT(commonTypes.hpp)
+    TE(toEnum.hpp)
+    OC(orderClass.hpp)
+    ORE(orderResponseEvents.hpp)
+    AI(accountInfoLite.hpp)
+    FS(futures/streams.hpp)
+    WSH(websocketStreamHolder.hpp)
+    ST(status.hpp)
+    TF(tradeEventFactory.hpp)
+    MF(markPriceFactory.hpp)
 
     FA[futures/api.hpp]       --> MGR
     FA                        --> SH
@@ -319,29 +315,27 @@ The deepest concrete implementations — the orderbook, order execution stream, 
 
 ```mermaid
 graph LR
-    classDef found fill:#f0f0f0,stroke:#aaa
-    classDef cross fill:#fff3cd,stroke:#f0ad4e
 
-    RP(requestParameter.hpp):::found
-    MGR(apiManager.hpp):::found
-    WAPI(websocketAPIStreamHolder.hpp):::found
-    POP(placeOrderParameters.hpp):::found
-    OT(orderTracker.hpp):::found
-    UDS(userDataStreams.hpp):::found
-    UDF(userDataStreamFactory.hpp):::found
-    AE(apiError.hpp):::found
-    FE(fetchError.hpp):::found
-    STR(streams.hpp):::found
-    EN(entry.hpp):::found
-    TSI(threadSafeIndexMap.hpp):::found
-    OBS(orderbookSnapshotIncoming.hpp):::found
-    ER(error.hpp):::found
-    OBA(orderbookArrays.hpp):::found
-    DE(decodeEntries.hpp):::found
-    WSH(websocketStreamHolder.hpp):::found
-    IE(includeErrors.hpp):::found
-    ST(status.hpp):::found
-    FA("futures/api.hpp  [cross-module]"):::cross
+    RP(requestParameter.hpp)
+    MGR(apiManager.hpp)
+    WAPI(websocketAPIStreamHolder.hpp)
+    POP(placeOrderParameters.hpp)
+    OT(orderTracker.hpp)
+    UDS(userDataStreams.hpp)
+    UDF(userDataStreamFactory.hpp)
+    AE(apiError.hpp)
+    FE(fetchError.hpp)
+    STR(streams.hpp)
+    EN(entry.hpp)
+    TSI(threadSafeIndexMap.hpp)
+    OBS(orderbookSnapshotIncoming.hpp)
+    ER(error.hpp)
+    OBA(orderbookArrays.hpp)
+    DE(decodeEntries.hpp)
+    WSH(websocketStreamHolder.hpp)
+    IE(includeErrors.hpp)
+    ST(status.hpp)
+    FA("futures/api.hpp  [cross-module]")
 
     OS[orderStream.hpp]        --> RP
     OS                         --> MGR
