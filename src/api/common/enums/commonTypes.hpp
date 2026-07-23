@@ -219,5 +219,5 @@ class MarginCallPosition {
     double isolatedWalletBalance;
     double markPrice;
     double unrealizedPNL;
-    double maintanceMargin;
+    double maintenanceMargin;
 };

@@ -149,7 +149,7 @@ class MarginCall {
             position.isolatedWalletBalance = field["iw"].get_double_in_string().value();
             position.markPrice = field["mp"].get_double_in_string().value();
             position.unrealizedPNL = field["up"].get_double_in_string().value();
-            position.maintanceMargin = field["mm"].get_double_in_string().value();
+            position.maintenanceMargin = field["mm"].get_double_in_string().value();
             positions.push_back(position);
         }
     }

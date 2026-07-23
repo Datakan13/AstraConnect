@@ -2,7 +2,7 @@
 #include <simdjson/simdjson.h>
 #include "api/common/userData/userDataStream.hpp"
 #include "api/common/userData/userDataStreamParsers.hpp"
-
+#include <spdlog/spdlog.h>
 // Check userDataStreamClass.hpp for request payloads and implementation functions
 auto parseUserDataStream = [](simdjson::padded_string& json, simdjson::ondemand::parser& parser) {
     auto doc = parser.iterate(json);
