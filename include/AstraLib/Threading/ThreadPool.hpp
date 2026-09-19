@@ -11,18 +11,6 @@
 namespace AstraLib {
 namespace Threading {
 
-constexpr size_t threadCount = 4;
-
-void set_low_priority(std::thread &t) {
-    sched_param sch_params;
-    sch_params.sched_priority = 0; // lowest for SCHED_OTHER
-
-    // Default Linux threads use SCHED_OTHER, which ignores sched_priority.
-    // To make priority changes effective, you’d need SCHED_BATCH or SCHED_IDLE.
-    pthread_setschedparam(t.native_handle(), SCHED_IDLE, &sch_params);
-}
-
-
 // ─────────────────────────────────────────────
 // Lightweight futex-based gate for thread sleep/wake
 // ─────────────────────────────────────────────
@@ -30,7 +18,9 @@ class ThreadGate {
     std::atomic<int>& flag;
 
 public:
-    explicit ThreadGate(std::atomic<int>& flag_) : flag(flag_) {}
+    explicit ThreadGate(std::atomic<int>& flag_) : flag(flag_) {
+        flag.store(0,std::memory_order_release);
+    }
 
     void waiter() {
         while (true) {
@@ -75,20 +65,12 @@ private:
                 task(); // Execute assigned task
                 task = nullptr;
 
+                gate.reset();  // Reset internal gate
                 // Mark worker as available again
                 poolFlag.store(0, std::memory_order_release);
                 std::atomic_thread_fence(std::memory_order_seq_cst);
-                gate.reset();  // Reset internal gate
             }
         }
-    }
-
-    // Did not use due to constraints of VPS with 4 vCPU cores
-    void pin_to_core(int core_id) {
-        cpu_set_t cpuset;
-        CPU_ZERO(&cpuset);
-        CPU_SET(core_id, &cpuset);
-        pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
     }
 
 public:
@@ -114,11 +96,13 @@ public:
 // ─────────────────────────────────────────────
 // ThreadPool handles task dispatching to workers
 // ─────────────────────────────────────────────
+template<std::size_t THREAD_COUNT>
 class ThreadPool {
+    static_assert(THREAD_COUNT > 0, "ThreadPool must have at least one thread.");
     std::atomic<int> taskFlag;
     std::thread dispatcherThread;
-    std::array<Worker, threadCount> threads;
-    std::array<std::atomic<int>*, threadCount> threadFlags;
+    std::array<Worker, THREAD_COUNT> threads;
+    std::array<std::atomic<int>*, THREAD_COUNT> threadFlags;
     AstraLib::Buffers::AtomicRingBuffer<std::function<void()>,1024> taskQueue;
     AstraLib::Threading::ThreadGate taskGate;
     
@@ -148,7 +132,7 @@ private:
             taskGate.waiter();
             std::atomic_thread_fence(std::memory_order_acquire);
 
-            while (true) {
+            while (true && running && !taskQueue.isEmpty()) {
                 task = taskQueue.dequeue();
                 size_t start = id;
                 bool assigned = false;
@@ -159,11 +143,11 @@ private:
                     int expected = 0;
                     if (flag->compare_exchange_strong(expected, 1, std::memory_order_acq_rel)) {
                         threads[id].activateWorker(std::move(task));
-                        id = (id + 1) % threadCount;
+                        id = (id + 1) % THREAD_COUNT;
                         assigned = true;
                         break;
                     }
-                    id = (id + 1) % threadCount;
+                    id = (id + 1) % THREAD_COUNT;
                 } while (id != start);
                 if(!assigned){
                     for(;;) {
@@ -172,11 +156,11 @@ private:
                             int expected = 0;
                             if (flag->compare_exchange_strong(expected, 1, std::memory_order_acq_rel)) {
                                 threads[id].activateWorker(std::move(task));
-                                id = (id + 1) % threadCount;
+                                id = (id + 1) % THREAD_COUNT;
                                 assigned = true;
                                 break;
                             }
-                            id = (id + 1) % threadCount;
+                            id = (id + 1) % THREAD_COUNT;
                         } while (id != start);
                         if (assigned) break;
                         _mm_pause();
@@ -184,6 +168,12 @@ private:
                     
                 }
                 
+            }
+            if(taskQueue.isEmpty()) {
+                taskGate.reset();
+                if (!taskQueue.isEmpty()) {
+                    taskGate.signaler();
+                }
             }
         }
     }

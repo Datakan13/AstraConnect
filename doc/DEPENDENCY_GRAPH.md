@@ -1,7 +1,7 @@
 # AstraConnect Dependency Graph
 
 Arrows show `#include` dependencies. Lower layers have no knowledge of higher layers.
-`api/orderbook/orderbook.hpp` is a known exception — it currently depends on `api/futures/api.hpp` (cross-module coupling, flagged for refactor).
+`api/orderbook/orderbook.hpp` is a known exception — it currently depends on `api/futures/api.hpp`.
 
 ---
 
