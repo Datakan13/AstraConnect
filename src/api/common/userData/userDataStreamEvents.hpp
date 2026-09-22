@@ -4,67 +4,7 @@
 #include "api/common/enums/commonTypes.hpp"
 #include "api/common/enums/toEnum.hpp"
 
-/*
-Payload example for account update 
-{
-  "e": "ACCOUNT_UPDATE",				// Event Type
-  "E": 1564745798939,            		// Event Time
-  "T": 1564745798938 ,           		// Transaction
-  "a":                          		// Update Data
-    {
-      "m":"ORDER",						// Event reason type
-      "B":[                     		// Balances
-        {
-          "a":"USDT",           		// Asset
-          "wb":"122624.12345678",    	// Wallet Balance
-          "cw":"100.12345678",			// Cross Wallet Balance
-          "bc":"50.12345678"			// Balance Change except PnL and Commission
-        },
-        {
-          "a":"BUSD",           
-          "wb":"1.00000000",
-          "cw":"0.00000000",         
-          "bc":"-49.12345678"
-        }
-      ],
-      "P":[
-        {
-          "s":"BTCUSDT",          	// Symbol
-          "pa":"0",               	// Position Amount
-          "ep":"0.00000",            // Entry Price
-          "bep":"0",                // breakeven price 
-		  "cr":"200",             	// (Pre-fee) Accumulated Realized
-          "up":"0",						// Unrealized PnL
-          "mt":"isolated",				// Margin Type
-          "iw":"0.00000000",			// Isolated Wallet (if isolated position)
-          "ps":"BOTH"					// Position Side
-        }，
-        {
-        	"s":"BTCUSDT",
-        	"pa":"20",
-        	"ep":"6563.66500",
-        	"bep":"0",                // breakeven price
-        	"cr":"0",
-        	"up":"2850.21200",
-        	"mt":"isolated",
-        	"iw":"13200.70726908",
-        	"ps":"LONG"
-      	 },
-        {
-        	"s":"BTCUSDT",
-        	"pa":"-10",
-        	"ep":"6563.86000",
-        	"bep":"6563.6",          // breakeven price
-        	"cr":"-45.04000000",
-        	"up":"-1423.15600",
-        	"mt":"isolated",
-        	"iw":"6570.42511771",
-        	"ps":"SHORT"
-        }
-      ]
-    }
-}
-*/
+// Wire format: doc/payloads/streams/user-account-update.md
 class AccountUpdate {
     public:
     AccountUpdateType eventType;
@@ -85,7 +25,11 @@ class AccountUpdate {
             asset.balanceChange = field["bc"].get_double_in_string().value();
             assets.push_back(asset);
         }
-        auto positionArray = obj["p"].get_array().value();
+        // "P" is omitted when FUNDING FEE lands on a crossed position: the docs say
+        // only "B" is pushed then. Absent positions is normal, not an error.
+        auto positionField = obj["P"];
+        if(positionField.error()) return;
+        auto positionArray = positionField.get_array().value();
         PositionBalance position;
         std::string marginType;
         std::string positionSide;
@@ -109,26 +53,7 @@ class AccountUpdate {
         parseFields(doc);
     };
 };
-/*
-payload for margin call 
-{
-    "e":"MARGIN_CALL",    	// Event Type
-    "E":1587727187525,		// Event Time
-    "cw":"3.16812045",		// Cross Wallet Balance. Only pushed with crossed position margin call
-    "p":[					// Position(s) of Margin Call
-      {
-        "s":"ETHUSDT",		// Symbol
-        "ps":"LONG",		// Position Side
-        "pa":"1.327",		// Position Amount
-        "mt":"CROSSED",		// Margin Type
-        "iw":"0",			// Isolated Wallet (if isolated position)
-        "mp":"187.17127",	// Mark Price
-        "up":"-1.166074",	// Unrealized PnL
-        "mm":"1.614445"		// Maintenance Margin Required
-      }
-    ]
-}  
-*/
+// Wire format: doc/payloads/streams/user-margin-call.md
 class MarginCall {
     public:
     double crossWalletBalance;
@@ -158,57 +83,7 @@ class MarginCall {
         parseFields(doc);
     }
 };
-/*
-payload example for order update
-{
-  "e":"ORDER_TRADE_UPDATE",		   // Event Type
-  "E":1568879465651,			       // Event Time
-  "T":1568879465650,			       // Transaction Time
-  "o":{								
-    "s":"BTCUSDT",			         // Symbol
-    "c":"TEST",				           // Client Order Id
-      // special client order id:
-      // starts with "autoclose-": liquidation order
-      // "adl_autoclose": ADL auto close order
-      // "settlement_autoclose-": settlement order for delisting or delivery
-    "S":"SELL",					         // Side
-    "o":"TRAILING_STOP_MARKET",	 // Order Type
-    "f":"GTC",					         // Time in Force
-    "q":"0.001",				         // Original Quantity
-    "p":"0",					           // Original Price
-    "ap":"0",					           // Average Price
-    "sp":"7103.04",				       // Stop Price. Please ignore with TRAILING_STOP_MARKET order
-    "x":"NEW",					         // Execution Type
-    "X":"NEW",					         // Order Status
-    "i":8886774,				         // Order Id
-    "l":"0",					           // Order Last Filled Quantity
-    "z":"0",					           // Order Filled Accumulated Quantity
-    "L":"0",					           // Last Filled Price
-    "N":"USDT",            	     // Commission Asset
-    "n":"0",               	     // Commission
-    "T":1568879465650,			     // Order Trade Time
-    "t":0,			        	       // Trade Id
-    "b":"0",			    	         // Bids Notional
-    "a":"9.91",					         // Ask Notional
-    "m":false,					         // Is this trade the maker side?
-    "R":false,					         // Is this reduce only
-    "wt":"CONTRACT_PRICE", 		   // Stop Price Working Type
-    "ot":"TRAILING_STOP_MARKET", // Original Order Type
-    "ps":"LONG",					       // Position Side
-    "cp":false,						       // If Close-All, pushed with conditional order
-    "AP":"7476.89",				       // Activation Price, only puhed with TRAILING_STOP_MARKET order
-    "cr":"5.0",					         // Callback Rate, only puhed with TRAILING_STOP_MARKET order
-    "pP": false,                 // If price protection is turned on
-    "si": 0,                     // ignore
-    "ss": 0,                     // ignore
-    "rp":"0",	   					       // Realized Profit of the trade
-    "V":"EXPIRE_TAKER",          // STP mode
-    "pm":"OPPONENT",             // Price match mode
-    "gtd":0,                     // TIF GTD order auto cancel time
-    "er":"0"                     // Expire Reason 
-  }
-}
-*/
+// Wire format: doc/payloads/streams/user-order-update.md
 class OrderUpdate {
     public:
     std::string pair;
@@ -302,28 +177,7 @@ class OrderUpdate {
         parseFields(doc);
     }
 };
-/*
-payload example for trade lite
-{
-  "e":"TRADE_LITE",             // Event Type
-  "E":1721895408092,            // Event Time
-  "T":1721895408214,            // Transaction Time                          
-  "s":"BTCUSDT",                // Symbol
-  "q":"0.001",                  // Original Quantity
-  "p":"0",                      // Original Price
-  "m":false,                    // Is this trade the maker side?
-  "c":"z8hcUoOsqEdKMeKPSABslD", // Client Order Id
-      // special client order id:
-      // starts with "autoclose-": liquidation order
-      // "adl_autoclose": ADL auto close order
-      // "settlement_autoclose-": settlement order for delisting or delivery
-  "S":"BUY",                   // Side
-  "L":"64089.20",              // Last Filled Price
-  "l":"0.040",                 // Order Last Filled Quantity
-  "t":109100866,               // Trade Id
-  "i":8886774,                // Order Id
-}
-*/
+// Wire format: doc/payloads/streams/user-trade-lite.md
 class TradeLite {
     public:
     int64_t tradeTimestamp;
@@ -358,31 +212,7 @@ class TradeLite {
         parseFields(doc);
     }
 };
-/*
-payload example for account configuration update
-first:
-{
-    "e":"ACCOUNT_CONFIG_UPDATE",       // Event Type
-    "E":1611646737479,		           // Event Time
-    "T":1611646737476,		           // Transaction Time
-    "ac":{								
-    "s":"BTCUSDT",					   // symbol
-    "l":25						       // leverage
-     
-    }
-}  
- 
-second:
-{
-    "e":"ACCOUNT_CONFIG_UPDATE",       // Event Type
-    "E":1611646737479,		           // Event Time
-    "T":1611646737476,		           // Transaction Time
-    "ai":{							   // User's Account Configuration
-    "j":true						   // Multi-Assets Mode
-    }
-}  
-
-*/
+// Wire format: doc/payloads/streams/user-account-config-update.md
 class AccountConfigUpdate {
     public:
     int64_t timestamp;
@@ -407,22 +237,7 @@ class AccountConfigUpdate {
         parseFields(doc);
     }
 };
-/*
-payload example for strategy update
-{
-	"e": "STRATEGY_UPDATE", // Event Type
-	"T": 1669261797627, // Transaction Time
-	"E": 1669261797628, // Event Time
-	"su": {
-			"si": 176054594, // Strategy ID
-			"st": "GRID", // Strategy Type
-			"ss": "NEW", // Strategy Status
-			"s": "BTCUSDT", // Symbol
-			"ut": 1669261797627, // Update Time
-			"c": 8007 // opCode
-		}
-}
-*/
+// Wire format: doc/payloads/streams/user-strategy-update.md
 class StrategyUpdate {
     public:
     int64_t timestamp;
@@ -451,26 +266,7 @@ class StrategyUpdate {
         parseFields(doc);
     }
 };
-/*
-payload example for grid update
-{
-	"e": "GRID_UPDATE", // Event Type
-	"T": 1669262908216, // Transaction Time
-	"E": 1669262908218, // Event Time
-	"gu": { 
-			"si": 176057039, // Strategy ID
-			"st": "GRID", // Strategy Type
-			"ss": "WORKING", // Strategy Status
-			"s": "BTCUSDT", // Symbol
-			"r": "-0.00300716", // Realized PNL
-			"up": "16720", // Unmatched Average Price
-			"uq": "-0.001", // Unmatched Qty
-			"uf": "-0.00300716", // Unmatched Fee
-			"mp": "0.0", // Matched PNL
-			"ut": 1669262908197 // Update Time
-		   }
-}
-*/
+// Wire format: doc/payloads/streams/user-grid-update.md
 class GridUpdate {
     public:
     int64_t timestamp;
@@ -507,19 +303,7 @@ class GridUpdate {
         parseFields(doc);
     }
 };
-/*
-payload example for Conditional order rejection
-{
-    "e":"CONDITIONAL_ORDER_TRIGGER_REJECT",      // Event Type
-    "E":1685517224945,      // Event Time
-    "T":1685517224955,      // me message send Time
-    "or":{
-      "s":"ETHUSDT",      // Symbol   
-      "i":155618472834,      // orderId
-      "r":"Due to the order could not be filled immediately, the FOK order has been rejected. The order will not be recorded in the order history",      // reject reason
-     }
-}  
-*/
+// Wire format: doc/payloads/streams/user-conditional-order-reject.md
 class ConditionalOrderReject {
     public:
     int64_t timestamp;

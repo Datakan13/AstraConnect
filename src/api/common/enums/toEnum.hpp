@@ -20,9 +20,13 @@ inline EventType returnEventType(const std::string& requested) {
     if (requested == "STRATEGY_UPDATE")          return EventType::STRATEGY_UPDATE;
     if (requested == "GRID_UPDATE")              return EventType::GRID_UPDATE;
     if (requested == "CONDITIONAL_ORDER_REJECT") return EventType::CONDITIONAL_ORDER_REJECT;
+    if (requested == "ALGO_UPDATE")              return EventType::ALGO_UPDATE;
+    if (requested == "listenKeyExpired")         return EventType::LISTEN_KEY_EXPIRED;
 
-    // Default fallback if unknown event type
-    throw std::invalid_argument("Unknown event type: " + requested);
+    // Unknown event types must not throw: this runs on the stream thread, where an
+    // escaping exception terminates the process. Binance adds events over time, so
+    // an unrecognised one is reported, not fatal.
+    return EventType::UNKNOWN;
 }
 
 inline AccountUpdateType returnAccountUpdateType(const std::string& reason) {

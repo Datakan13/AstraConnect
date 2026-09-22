@@ -30,10 +30,7 @@ class APIManager::User::FuturesStream{
     std::unique_ptr<FetchError> lastError;
     // FAIL (could not connect) vs CLOSED (holder is shutting down)
     AstraLib::Atomic::PaddedAtomic<ConnectionStatus> lastStatus{ConnectionStatus::FAIL};
-    /*  
-        Payload example for listen key 
-        {"listenKey":"gwKzdioWPho490C2wogHUt9EF8rfkSxO5EVILWXV7gD0k94n7wP97EEfzA3DURPH"}
-    */
+    // Wire format: doc/payloads/rest/futures-listen-key.md
     public:
     FetchError getListenKey() {
         std::string target = "/fapi/v1/listenKey";

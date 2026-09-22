@@ -11,10 +11,7 @@ class APIManager::User::SpotStream{
     simdjson::ondemand::parser parser;
     RequestParameter<std::string> listenKeyParameter;
 
-        /*
-        Payload example for listen key 
-        {"listenKey":"CFhC7fBYdyq2PoFnsk9U5lvpCEb5fEyQkjCR0DdvPCCzCZMEt9DCGrKzb"}
-    */
+        // Wire format: doc/payloads/rest/spot-listen-key.md
     public:
     FetchError getListenKey() {
         std::string target = "/fapi/v1/listenKey";

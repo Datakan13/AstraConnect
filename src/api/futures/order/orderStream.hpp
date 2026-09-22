@@ -154,7 +154,7 @@ class APIManager::Futures::OrderStream{
             orderTracker.registerOrderSent(orderID,AstraLib::Time::unixTimestampMS(),px, qty,pair,tif,orderSide,posSide,orderType,doc);
             int64_t status = orderTracker.getOrderStatusint(orderID);
             if( status == 200) {
-                orderTracker.queueActiveOrderId(doc["results"].get_object().value().find_field("orderId").get_int64().value());
+                orderTracker.queueActiveOrderId(doc["result"].get_object().value().find_field("orderId").get_int64().value());
                 return RequestStatus::SUCCESS;
             } else {
                 if(status / 100 == 4) {
@@ -197,7 +197,7 @@ class APIManager::Futures::OrderStream{
 
             int64_t status = orderTracker.getOrderStatusint(orderID);
             if( status == 200) {
-                orderTracker.queueActiveOrderId(doc["results"].get_object().value().find_field("orderId").get_int64().value());
+                orderTracker.queueActiveOrderId(doc["result"].get_object().value().find_field("orderId").get_int64().value());
                 return RequestStatus::SUCCESS;
             } else {
                 if(status / 100 == 4) {
@@ -228,7 +228,7 @@ class APIManager::Futures::OrderStream{
 
             int64_t status = orderTracker.getOrderStatusint(orderID);
             if( status == 200) {
-                orderTracker.queueActiveOrderId(doc["results"].get_object().value().find_field("orderId").get_int64().value());
+                orderTracker.queueActiveOrderId(doc["result"].get_object().value().find_field("orderId").get_int64().value());
                 return RequestStatus::SUCCESS;
             } else {
                 if(status / 100 == 4) {
@@ -291,7 +291,7 @@ class APIManager::Futures::OrderStream{
 
             int64_t status = orderTracker.getOrderStatusint(orderID);
             if( status == 200) {
-                orderTracker.queueActiveOrderId(doc["results"].get_object().value().find_field("orderId").get_int64().value());
+                orderTracker.queueActiveOrderId(doc["result"].get_object().value().find_field("orderId").get_int64().value());
                 return RequestStatus::SUCCESS;
             } else {
                 if(status / 100 == 4) {

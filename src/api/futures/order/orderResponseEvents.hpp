@@ -56,62 +56,7 @@ class RateLimitHolder {
     
 };
 
-/*
-payload example for new order response 
-{
-    "id": "3f7df6e3-2df4-44b9-9919-d2f38f90a99a",
-    "status": 200,
-    "result": {
-        "orderId": 325078477,
-        "symbol": "BTCUSDT",
-        "status": "NEW",
-        "clientOrderId": "iCXL1BywlBaf2sesNUrVl3",
-        "price": "43187.00",
-        "avgPrice": "0.00",
-        "origQty": "0.100",
-        "executedQty": "0.000",
-        "cumQty": "0.000",
-        "cumQuote": "0.00000",
-        "timeInForce": "GTC",
-        "type": "LIMIT",
-        "reduceOnly": false,
-        "closePosition": false,
-        "side": "BUY",
-        "positionSide": "BOTH",
-        "stopPrice": "0.00",
-        "workingType": "CONTRACT_PRICE",
-        "priceProtect": false,
-        "origType": "LIMIT",
-        "priceMatch": "NONE",
-        "selfTradePreventionMode": "NONE",
-        "goodTillDate": 0,
-        "updateTime": 1702555534435
-    },
-    "rateLimits": [
-        {
-            "rateLimitType": "ORDERS",
-            "interval": "SECOND",
-            "intervalNum": 10,
-            "limit": 300,
-            "count": 1
-        },
-        {
-            "rateLimitType": "ORDERS",
-            "interval": "MINUTE",
-            "intervalNum": 1,
-            "limit": 1200,
-            "count": 1
-        },
-        {
-            "rateLimitType": "REQUEST_WEIGHT",
-            "interval": "MINUTE",
-            "intervalNum": 1,
-            "limit": 2400,
-            "count": 1
-        }
-    ]
-}
-*/
+// Wire format: doc/payloads/ws-api/order-new.md
 class OrderNewResponse {
 public:
     // Top-level fields
@@ -223,62 +168,7 @@ public:
 
 };
 
-/*
-payload example for order modify response
-{
-    "id": "c8c271ba-de70-479e-870c-e64951c753d9",
-    "status": 200,
-    "result": {
-        "orderId": 328971409,
-        "symbol": "BTCUSDT",
-        "status": "NEW",
-        "clientOrderId": "xGHfltUMExx0TbQstQQfRX",
-        "price": "43769.10",
-        "avgPrice": "0.00",
-        "origQty": "0.110",
-        "executedQty": "0.000",
-        "cumQty": "0.000",
-        "cumQuote": "0.00000",
-        "timeInForce": "GTC",
-        "type": "LIMIT",
-        "reduceOnly": false,
-        "closePosition": false,
-        "side": "SELL",
-        "positionSide": "SHORT",
-        "stopPrice": "0.00",
-        "workingType": "CONTRACT_PRICE",
-        "priceProtect": false,
-        "origType": "LIMIT",
-        "priceMatch": "NONE",
-        "selfTradePreventionMode": "NONE",
-        "goodTillDate": 0,
-        "updateTime": 1703426756190
-    },
-    "rateLimits": [
-        {
-            "rateLimitType": "ORDERS",
-            "interval": "SECOND",
-            "intervalNum": 10,
-            "limit": 300,
-            "count": 1
-        },
-        {
-            "rateLimitType": "ORDERS",
-            "interval": "MINUTE",
-            "intervalNum": 1,
-            "limit": 1200,
-            "count": 1
-        },
-        {
-            "rateLimitType": "REQUEST_WEIGHT",
-            "interval": "MINUTE",
-            "intervalNum": 1,
-            "limit": 2400,
-            "count": 1
-        }
-    ]
-}
-*/
+// Wire format: doc/payloads/ws-api/order-modify.md
 class OrderModifyResponse {
 public:
     // Top-level fields
@@ -388,49 +278,7 @@ public:
     }
 };
 
-/*
-payload example for order cancel response 
-{
-  "id": "5633b6a2-90a9-4192-83e7-925c90b6a2fd",
-  "status": 200,
-  "result": {
-    "clientOrderId": "myOrder1",
-    "cumQty": "0",
-    "cumQuote": "0",
-    "executedQty": "0",
-    "orderId": 283194212,
-    "origQty": "11",
-    "origType": "TRAILING_STOP_MARKET",
-    "price": "0",
-    "reduceOnly": false,
-    "side": "BUY",
-    "positionSide": "SHORT",
-    "status": "CANCELED",
-    "stopPrice": "9300",                
-    "closePosition": false,  
-    "symbol": "BTCUSDT",
-    "timeInForce": "GTC",
-    "type": "TRAILING_STOP_MARKET",
-    "activatePrice": "9020",            
-    "priceRate": "0.3",                
-    "updateTime": 1571110484038,
-    "workingType": "CONTRACT_PRICE",
-    "priceProtect": false,           
-    "priceMatch": "NONE",              
-    "selfTradePreventionMode": "NONE",
-    "goodTillDate": 0                 
-  },
-  "rateLimits": [
-    {
-      "rateLimitType": "REQUEST_WEIGHT",
-      "interval": "MINUTE",
-      "intervalNum": 1,
-      "limit": 2400,
-      "count": 1
-    }
-  ]
-}
-*/
+// Wire format: doc/payloads/ws-api/order-cancel.md
 class OrderCancelResponse {
 public:
     std::string id;

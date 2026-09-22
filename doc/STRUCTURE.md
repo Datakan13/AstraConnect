@@ -7,6 +7,7 @@
 | `src/`        | All library source (header-only)                 |
 | `tests/`      | Unit and integration tests                       |
 | `doc/`        | Additional documentation                         |
+| `doc/payloads/`| Binance wire formats, one file per payload      |
 
 ## src/
 

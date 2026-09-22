@@ -10,25 +10,7 @@ class APIManager::Spot::API{
         StreamHolder spot;
         ThreadSafeParser parserSpot;
         public:
-        /*
-            Payload example for kline candle stick data
-            [
-                [
-                    1499040000000,      // Kline open time [index: 0]
-                    "0.01634790",       // Open price [index: 1]
-                    "0.80000000",       // High price [index: 2]
-                    "0.01575800",       // Low price [index: 3]
-                    "0.01577100",       // Close price [index: 4]
-                    "148976.11427815",  // Volume [index: 5]
-                    1499644799999,      // Kline Close time [index: 6]
-                    "2434.19055334",    // Quote asset volume [index: 7]
-                    308,                // Number of trades [index: 8]
-                    "1756.87402397",    // Taker buy base asset volume [index: 9]
-                    "28.46694368",      // Taker buy quote asset volume [index: 10]
-                    "0"                 // Unused field, ignore. [index: 11]
-                ]
-            ]
-        */
+        // Wire format: doc/payloads/rest/spot-klines.md
 
         // pair: e.g. "BTCUSDT" timeframe: e.g. "5m", "1h"
         FetchError fetchCandles(AstraLib::Buffers::AtomicRingBuffer<Candle,2048>& outputBuff, const std::string pair,  const std::string timeframe) {
