@@ -85,7 +85,7 @@ class OrderTracker {
     }
 
     void queueActiveOrderId(int64_t id) {
-        activeOrders.noMoveEnqueue(id);
+        activeOrders.enqueue(id);
     }
 
 };

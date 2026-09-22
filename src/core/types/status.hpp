@@ -8,7 +8,8 @@ enum class RequestStatus {
 
 enum class ConnectionStatus {
     SUCCESS,
-    FAIL
+    FAIL,
+    CLOSED
 };
 
 enum class PriceValid {

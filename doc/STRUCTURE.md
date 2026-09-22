@@ -35,3 +35,4 @@
 | `net/`              | Boost.Beast/Asio glue and WebSocket networking primitives        |
 | `manager/`          | High-level API manager coordinating streams and lifecycle        |
 | `utils/crypto/`     | HMAC-SHA256 request signing                                      |
+| `utils/net/`        | Shared connection helpers (exponential backoff schedule)         |

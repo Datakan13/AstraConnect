@@ -41,7 +41,7 @@ class APIManager {
 
     public:
     APIManager() :
-     ctx(boost::asio::ssl::context::sslv23) {
+     ctx(boost::asio::ssl::context::tls_client) {
         APIKey = std::getenv("API_KEY");
         PrivateKey = std::getenv("PRIVATE_KEY");
     };

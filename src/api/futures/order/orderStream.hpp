@@ -148,9 +148,10 @@ class APIManager::Futures::OrderStream{
 
             std::cout << payload << std::endl;
 
-            auto json = orderStream.sendRequest(payload);
-            std::cout << "response: " << json << std::endl;
-            simdjson::ondemand::document doc = parser.iterate(json);
+            StreamData data = orderStream.sendRequest(payload);
+            if(!data) return RequestStatus::FAIL;
+            std::cout << "response: " << data.string << std::endl;
+            simdjson::ondemand::document doc = parser.iterate(data.string);
 
             orderTracker.registerOrderSent(orderID,AstraLib::Time::unixTimestampMS(),px, qty,pair,tif,orderSide,posSide,orderType,doc);
             int64_t status = orderTracker.getOrderStatusint(orderID);
@@ -195,9 +196,10 @@ class APIManager::Futures::OrderStream{
 
             std::cout << payload << std::endl;
 
-            auto json = orderStream.sendRequest(payload);
-            std::cout << "response: " << json << std::endl;
-            simdjson::ondemand::document doc = parser.iterate(json);
+            StreamData data = orderStream.sendRequest(payload);
+            if(!data) return RequestStatus::FAIL;
+            std::cout << "response: " << data.string << std::endl;
+            simdjson::ondemand::document doc = parser.iterate(data.string);
 
             int64_t status = orderTracker.getOrderStatusint(orderID);
             if( status == 200) {
@@ -229,9 +231,10 @@ class APIManager::Futures::OrderStream{
 
             std::cout << payload << std::endl;
 
-            auto json = orderStream.sendRequest(payload);
-            std::cout << "response: " << json << std::endl;
-            simdjson::ondemand::document doc = parser.iterate(json);
+            StreamData data = orderStream.sendRequest(payload);
+            if(!data) return RequestStatus::FAIL;
+            std::cout << "response: " << data.string << std::endl;
+            simdjson::ondemand::document doc = parser.iterate(data.string);
 
             int64_t status = orderTracker.getOrderStatusint(orderID);
             if( status == 200) {
@@ -264,9 +267,10 @@ class APIManager::Futures::OrderStream{
 
             std::cout << payload << std::endl;
 
-            auto json = orderStream.sendRequest(payload);
-            std::cout << "response: " << json << std::endl;
-            simdjson::ondemand::document doc = parser.iterate(json);
+            StreamData data = orderStream.sendRequest(payload);
+            if(!data) return RequestStatus::FAIL;
+            std::cout << "response: " << data.string << std::endl;
+            simdjson::ondemand::document doc = parser.iterate(data.string);
 
             int64_t status = doc["status"].get_int64().value();
             if( status == 200) {
@@ -298,9 +302,10 @@ class APIManager::Futures::OrderStream{
 
             std::cout << payload << std::endl;
 
-            auto json = orderStream.sendRequest(payload);
-            std::cout << "response: " << json << std::endl;
-            simdjson::ondemand::document doc = parser.iterate(json);
+            StreamData data = orderStream.sendRequest(payload);
+            if(!data) return RequestStatus::FAIL;
+            std::cout << "response: " << data.string << std::endl;
+            simdjson::ondemand::document doc = parser.iterate(data.string);
 
             int64_t status = orderTracker.getOrderStatusint(orderID);
             if( status == 200) {
@@ -321,6 +326,12 @@ class APIManager::Futures::OrderStream{
             std::cout << "Soo error is here: "<< e.what() << std::endl;
             return RequestStatus::FAIL;
         }
+    }
+
+    // Returns true if the underlying websocket API connection is alive
+    // WARNING: OrderStream construction is non-throwing, check this before sending orders
+    bool connectionAlive() {
+        return orderStream.connectionAlive();
     }
 
     int64_t getLastOrderId() {

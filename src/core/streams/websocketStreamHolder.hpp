@@ -4,6 +4,11 @@
 #include <simdjson/simdjson.h>
 #include "core/protocol/requestParameter.hpp"
 #include "core/parsing/threadSafeParser.hpp"
+#include "core/types/status.hpp"
+#include "utils/net/exponentialBackOff.hpp"
+#include "api/common/error/includeErrors.hpp"
+#include <memory>
+#include <utility>
 
 // The first template is the data you want to keep e.g. TradeEvent 
 // The second template is your data construction function which must return your data type 
@@ -25,13 +30,20 @@ class WebsocketStreamHolder {
     Func func;
     ThreadSafeParser& parserWrapper;
     std::thread thread;
+    AstraConnect::Utils::BackoffPolicy backoffPolicy;
+    // Signalled whenever `running` is cleared, so a parked backoff wakes at once
+    // instead of sleeping out the rest of its interval.
+    AstraConnect::Utils::BackoffInterrupt shutdownSignal;
+    // Owned by this class. Cleared on every connection attempt, set on failure.
+    std::unique_ptr<FetchError> lastError;
     ConnectionStatus setupConnection() {
         connecting.value.store(true,std::memory_order_release);
+        lastError.reset();
         std::cout << "connecting to: " << host << target << std::endl;
         try {
             auto const results = resolver.resolve(host, port);
             ctx.set_default_verify_paths();
-            net::connect(ws.next_layer().next_layer(), results.begin(), results.end());
+            net::connect(ws.next_layer().next_layer(), results);
 
             // Set SNI Hostname (required by many TLS servers)
             if(!SSL_set_tlsext_host_name(ws.next_layer().native_handle(), host.c_str())) {
@@ -51,31 +63,20 @@ class WebsocketStreamHolder {
             connecting.value.store(false,std::memory_order_release);
             return ConnectionStatus::SUCCESS;
         } catch(std::exception& e) {
+            lastError = std::make_unique<FetchError>(APIError::BOOST_ERROR,std::string(e.what()));
             connecting.value.store(false,std::memory_order_release);
             std::cout << e.what() << std::endl;
             return ConnectionStatus::FAIL;
         } 
     }
 
+    // Stops early and reports CLOSED when the holder is shutting down.
     ConnectionStatus exponentialBackOff() {
-        const int delay = 500;
-        const int increasePerTry = 2;
-        const int maxTryCount = 20;
-        const int maxDelay = static_cast<int>(delay * std::pow(increasePerTry, maxTryCount));
-        std::chrono::milliseconds backoff(delay);
-        ConnectionStatus status;
-        for(;;) {
-            std::this_thread::sleep_for(backoff);
-            status = setupConnection();
-            if(status == ConnectionStatus::SUCCESS) {
-                return ConnectionStatus::SUCCESS;
-            }
-            backoff *= increasePerTry;
-            if(backoff.count() >= maxDelay) {
-                return ConnectionStatus::FAIL;
-            }
-        }
-        
+        return AstraConnect::Utils::exponentialBackOff(
+            [this]{ return setupConnection(); },
+            [this]{ return running.value.load(std::memory_order_acquire); },
+            backoffPolicy,
+            &shutdownSignal);
     }
 
     public:
@@ -113,30 +114,40 @@ class WebsocketStreamHolder {
     }
 
 
-    ConnectionStatus getStatus() {
+    // Returns the connection status paired with the reason it failed.
+    // The FetchError* is owned by this class and is reset on every connection attempt,
+    // so copy anything you need out of it before triggering a reconnect.
+    // On SUCCESS the pointer is nullptr.
+    std::pair<ConnectionStatus,FetchError*> getStatus() {
         while(connecting.value.load(std::memory_order_acquire)) {
             _mm_pause();
         }
-        if(!(running.value.load(std::memory_order_acquire)) || !(connectionAlive.value.load(std::memory_order_acquire)) ) return ConnectionStatus::FAIL;
-        return ConnectionStatus::SUCCESS;
+        // stopped on purpose, or gave up and shut down -> CLOSED
+        if(!(running.value.load(std::memory_order_acquire))) return {ConnectionStatus::CLOSED, lastError.get()};
+        // still running, just not connected -> FAIL
+        if(!(connectionAlive.value.load(std::memory_order_acquire))) return {ConnectionStatus::FAIL, lastError.get()};
+        return {ConnectionStatus::SUCCESS, nullptr};
     }
 
     bool closeConnection() {
         boost::system::error_code ec;
         if(connectionAlive.value.load(std::memory_order_acquire)) connectionAlive.value.store(false,std::memory_order_release);
         if(running.value.load(std::memory_order_acquire)) running.value.store(false,std::memory_order_release);
+        shutdownSignal.signal();
         if(getLatestMessage().length() == 0) ws.next_layer().shutdown(ec);
         return !ec;
     }
 
     private:
     void executionLoop() {
-        ConnectionStatus status;
+        ConnectionStatus status = ConnectionStatus::SUCCESS;
         if(!(connectionAlive.value.load(std::memory_order_acquire))) status = setupConnection();
         if(status != ConnectionStatus::SUCCESS) {
             status = exponentialBackOff();
             if(status != ConnectionStatus::SUCCESS){
                 running.value.store(false,std::memory_order_release);
+                // FAIL or CLOSED: we never got a live connection, so do not advertise one
+                return;
             }
         }
         connectionAlive.value.store(true,std::memory_order_release);
@@ -145,14 +156,14 @@ class WebsocketStreamHolder {
             auto json = getLatestMessage();
             if(json.length() == 0) connectionAlive.value.store(false,std::memory_order_release);
             if(!(connectionAlive.value.load(std::memory_order_acquire))) status = exponentialBackOff();
-            if(status == ConnectionStatus::FAIL) {
+            if(status != ConnectionStatus::SUCCESS) {   // FAIL or CLOSED
                 running.value.store(false,std::memory_order_release);
                 break;
             }
             ThreadSafeParserRAII parser(parserWrapper);
 
             data = func(json,parser.parser);
-            bufferOut.noMoveEnqueue(data);
+            bufferOut.enqueue(data);
             controlVariable.value.fetch_add(1,std::memory_order_release);
         }
     }
@@ -169,22 +180,24 @@ class WebsocketStreamHolder {
 
     ConnectionStatus reEstablishExecution() {
         closeConnection();
+        // The old loop must be finished before we touch the stream again.
+        if(thread.joinable()) thread.join();
+        // closeConnection() cleared `running`; exponentialBackOff() now honours it,
+        // so it has to be re-armed or the retry below reports CLOSED without trying.
+        running.value.store(true,std::memory_order_release);
+        // signal() is sticky, so clear it or the next backoff returns instantly.
+        shutdownSignal.reset();
+
         ConnectionStatus status = setupConnection();
-
         if(status != ConnectionStatus::SUCCESS) status = exponentialBackOff();
-        if(status != ConnectionStatus::SUCCESS) return ConnectionStatus::FAIL;
-
-        if(running.value.load(std::memory_order_acquire)){
+        if(status != ConnectionStatus::SUCCESS) {
             running.value.store(false,std::memory_order_release);
-            if(thread.joinable()) thread.join();
-        } else {
-            if(thread.joinable()) thread.join();
-            running.value.store(true,std::memory_order_release);
+            return status;   // FAIL or CLOSED, propagated as-is
         }
 
         thread = std::thread(&WebsocketStreamHolder::executionLoop, this);
 
-        return connectionAlive.value.load(std::memory_order_relaxed)
+        return connectionAlive.value.load(std::memory_order_acquire)
        ? ConnectionStatus::SUCCESS
        : ConnectionStatus::FAIL;
     }
@@ -193,13 +206,15 @@ class WebsocketStreamHolder {
     std::string host_, std::string target_,ThreadSafeParser& parser_) : 
     resolver(ioc), ws(ioc,ctx),
     target(target_) ,host(host_), 
-    ctx(boost::asio::ssl::context::sslv23), parserWrapper(parser_), 
+    ctx(boost::asio::ssl::context::tls_client), parserWrapper(parser_), 
     func(std::move(func_)), thread(&WebsocketStreamHolder::executionLoop,this) {        
 
     }
 
     ~WebsocketStreamHolder() {
         running.value.store(false, std::memory_order_release);
+        // Wake a parked backoff, otherwise the join below waits out its interval.
+        shutdownSignal.signal();
         if(thread.joinable()) thread.join();
     }
 

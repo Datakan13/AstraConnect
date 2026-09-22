@@ -13,7 +13,11 @@ template<typename T>
 // seq == ticket + 1 read
 struct alignas(64) Slot {
     std::atomic<int64_t> seq{0};
-    static_assert(sizeof(T) <= 64 - sizeof(seq), "Cache line overflow: A too large for ring buffer slot");
+    // alignas(64) is what keeps slots off each other's cache lines: every slot starts
+    // on a line boundary and sizeof(Slot) rounds up to a multiple of 64, so no two
+    // slots ever share one. A payload wider than a line is therefore fine, it just
+    // makes each slot span more than one. Bound below is only a sanity guard.
+    static_assert(sizeof(T) <= 4096, "Payload too large for ring buffer slot");
     T data;
 };
 

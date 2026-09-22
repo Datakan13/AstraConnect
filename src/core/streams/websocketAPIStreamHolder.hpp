@@ -4,6 +4,7 @@
 #include <simdjson/simdjson.h>
 #include "core/protocol/requestParameter.hpp"
 #include "core/types/status.hpp"
+#include "utils/net/exponentialBackOff.hpp"
 #include "utils/crypto/hmacSha256.hpp"
 #include <chrono>
 
@@ -18,12 +19,14 @@ class WebsocketAPIStreamHolder {
     std::string APIKey;
     std::string privateKey;
     boost::beast::flat_buffer buffer;
+    ConnectionStatus connectionStatus;
+    AstraConnect::Utils::BackoffPolicy backoffPolicy;
     
     ConnectionStatus setupConnection() {
         try {
             auto const results = resolver.resolve(host, port);
             ctx.set_default_verify_paths();
-            net::connect(ws.next_layer().next_layer(), results.begin(), results.end());
+            net::connect(ws.next_layer().next_layer(), results);
 
             // Set SNI Hostname (required by many TLS servers)
             if(!SSL_set_tlsext_host_name(ws.next_layer().native_handle(), host.c_str())) {
@@ -47,56 +50,59 @@ class WebsocketAPIStreamHolder {
     }
     
     ConnectionStatus exponentialBackOff() {
-        const int delay = 500;
-        const int increasePerTry = 2;
-        const int maxTryCount = 20;
-        const int maxDelay = static_cast<int>(delay * std::pow(increasePerTry, maxTryCount));
-        std::chrono::milliseconds backoff(delay);
-        ConnectionStatus status;
-        for(;;) {
-            std::this_thread::sleep_for(backoff);
-            status = setupConnection();
-            if(status == ConnectionStatus::SUCCESS) {
-                return ConnectionStatus::SUCCESS;
-            }
-            backoff *= increasePerTry;
-            if(backoff.count() >= maxDelay) {
-                return ConnectionStatus::FAIL;
-            }
-        }
-        
+        return AstraConnect::Utils::exponentialBackOff(
+            [this]{ return setupConnection(); },
+            backoffPolicy);
     }
 
     public:
-    simdjson::padded_string sendRequest(std::string& request) {
-        try {
-            ws.write(net::buffer(request));
-            ws.read(buffer);} 
-        catch(std::exception& e) {
-            throw std::runtime_error(std::string{"Boost error while sending request: " + std::string(e.what())});
+    // Returns true if the connection is alive
+    // LIMITATION: It can only have the current state of the connection if it's been newly constructed or had a request through it
+    bool connectionAlive() {
+        return connectionStatus == ConnectionStatus::SUCCESS;
+    }
+
+    // Will return a StreamData struct with components
+    // status: ConnectionStatus object 
+    // string: simdjson::padded_string object
+    // ec: boost::beast::error_code
+    // the returned StreamData should be used as if(streamData) string valid otherwise invalid check ec
+    StreamData sendRequest(std::string& request) {
+        StreamData data;
+        beast::error_code ec;
+
+        ws.write(net::buffer(request),ec);
+        if(ec) {
+            data.ec = ec;
+            connectionStatus = ConnectionStatus::FAIL;
+            return data;
         }
-        auto json = simdjson::padded_string(
-                boost::beast::buffers_to_string(buffer.data())
-            );
+        ws.read(buffer,ec);
+        if(ec) {
+            data.ec = ec;
             buffer.consume(buffer.size());
-        return json;
+            connectionStatus = ConnectionStatus::FAIL;
+            return data;
+        }
+
+        data.string = simdjson::padded_string(
+            boost::beast::buffers_to_string(buffer.data())
+        );
+        buffer.consume(buffer.size());
+        data.status = ConnectionStatus::SUCCESS;
+        return data;
     }
 
     std::string getHMAC(std::string& data) {
         return hmac_sha256(privateKey,data);
     }
 
-    WebsocketAPIStreamHolder(std::string host_, std::string& target_) : host(host_), target(target_),  ctx((net::ssl::context::sslv23)), ws(ioc,ctx), resolver(ioc) {
+    // WARNING: the caller needs to check if the connection is alive with connectionAlive() since it is non-throwing
+    WebsocketAPIStreamHolder(std::string host_, std::string& target_) : host(host_), target(target_),  ctx((net::ssl::context::tls_client)), ws(ioc,ctx), resolver(ioc) {
         APIKey = std::getenv("API_KEY");
         privateKey = std::getenv("PRIVATE_KEY");
-        ConnectionStatus status = setupConnection();
-        if(status != ConnectionStatus::SUCCESS) {
-            status = exponentialBackOff();
-            if(status == ConnectionStatus::FAIL) {
-                std::string error = "Connection to websocket failed for host: " + host_ + target_;
-                throw std::runtime_error(error);
-            } 
-        }
+        connectionStatus = setupConnection();
+        if(connectionStatus != ConnectionStatus::SUCCESS) connectionStatus = exponentialBackOff();
     };
 
 };

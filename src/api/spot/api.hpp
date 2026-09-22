@@ -34,10 +34,11 @@ class APIManager::Spot::API{
         FetchError fetchCandles(AstraLib::Buffers::AtomicRingBuffer<Candle,2048>& outputBuff, const std::string pair,  const std::string timeframe) {
 
             const std::string target = "/api/v3/klines?symbol="+ pair+"&interval=" + timeframe;
-            auto json = spot.sendRequest(target);
+            StreamData data = spot.sendRequest(target);
+            if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());
 
             ThreadSafeParserRAII parser(parserSpot);
-            auto candleArray = parser.parser.iterate(json);            
+            auto candleArray = parser.parser.iterate(data.string);            
             int index = 0;
             Candle outCandle;
             try {
@@ -75,7 +76,7 @@ class APIManager::Spot::API{
                         }
                         index++;
                     }
-                    outputBuff.noMoveEnqueue(outCandle);
+                    outputBuff.enqueue(outCandle);
                     index = 0;
                 }
             } catch(std::exception& e) {

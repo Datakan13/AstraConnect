@@ -40,17 +40,11 @@ class APIManager::Futures::API{
         FetchError fetchOpenInterestHist(AstraLib::Buffers::AtomicRingBuffer<OpenInterest,1024>& outputBuff, const std::string pair, const std::string timeframe) {
 
             const std::string target = "/futures/data/openInterestHist?symbol=" + pair + "&period=" + timeframe;
-            simdjson::padded_string json;
-            try{
-                json = simdjson::padded_string{futures.sendRequest(target)};
-            } catch(std::runtime_error& e) {
-                return FetchError(APIError::BOOST_ERROR,std::string(e.what()));
-            } catch(std::exception& e) {
-                return FetchError(APIError::UNKNOWN,std::string(e.what()));
-            }
+            StreamData data = futures.sendRequest(target);
+            if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());
 
             ThreadSafeParserRAII parser(parserFutures);
-            auto interestArray = parser.parser.iterate(json);
+            auto interestArray = parser.parser.iterate(data.string);
             try {
                 OpenInterest interestFrameHolder;
                 for(auto interestFrame : interestArray) {
@@ -58,7 +52,7 @@ class APIManager::Futures::API{
                     interestFrameHolder.totalInterestValue = interestFrame["sumOpenInterestValue"].get_double_in_string().value();
                     interestFrameHolder.circulation = interestFrame["CMCCirculatingSupply"].get_double_in_string().value();
                     interestFrameHolder.timestamp = interestFrame["timestamp"].get_int64().value();
-                    outputBuff.noMoveEnqueue(interestFrameHolder);
+                    outputBuff.enqueue(interestFrameHolder);
                 }
             } catch(std::exception& e) {
                 outputBuff.clearBuffer();
@@ -86,17 +80,11 @@ class APIManager::Futures::API{
         // Returns current interest and timeframe 
         FetchError fetchOpenInterestCurrent(CurrentOpenInterest& ref ,const std::string pair) {
             const std::string target = "/fapi/v1/openInterest?symbol=" + pair;
-            simdjson::padded_string json;
-            try{
-                json = simdjson::padded_string{futures.sendRequest(target)};
-            } catch(std::runtime_error& e) {
-               return  FetchError(APIError::BOOST_ERROR,std::string(e.what()));
-            } catch(std::exception& e) {
-                return FetchError(APIError::UNKNOWN,std::string(e.what()));
-            }
+            StreamData data = futures.sendRequest(target);
+            if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());
 
             ThreadSafeParserRAII parser(parserFutures);
-            auto interestCurrent = parser.parser.iterate(json);
+            auto interestCurrent = parser.parser.iterate(data.string);
             
             try {
                 ref.openInterest = interestCurrent.find_field("openInterest").value().get_double_in_string().value();
@@ -228,16 +216,10 @@ class APIManager::Futures::API{
 
         FetchError fetchExchangeInfoForPair(std::string pair,PairInfo& out) {
             const std::string target = "/fapi/v1/exchangeInfo";
-            simdjson::padded_string json;
-            try{
-                json = simdjson::padded_string{futures.sendRequest(target)};
-            } catch(std::runtime_error& e) {
-               return  FetchError(APIError::BOOST_ERROR,std::string(e.what()));
-            } catch(std::exception& e) {
-                return FetchError(APIError::UNKNOWN,std::string(e.what()));
-            }
+            StreamData data = futures.sendRequest(target);
+            if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());
             ThreadSafeParserRAII parser(parserFutures);
-            auto doc = parser.parser.iterate(json);
+            auto doc = parser.parser.iterate(data.string);
             std::string pair_;
             std::string field_;
             for(auto symbol : doc["symbols"]) {
@@ -268,16 +250,10 @@ class APIManager::Futures::API{
         FetchError fetchOrderbookSnapshot(std::string pair, OrderbookSnapshotIncoming& out) {
             std::cout << "snapshot ordered" << std::endl;
             const std::string target = "/fapi/v1/depth?symbol="+pair+"&limit=1000";
-            simdjson::padded_string json;
-            try{
-                json = simdjson::padded_string{futures.sendRequest(target)};
-            } catch(std::runtime_error& e) {
-               return  FetchError(APIError::BOOST_ERROR,std::string(e.what()));
-            } catch(std::exception& e) {
-                return FetchError(APIError::UNKNOWN,std::string(e.what()));
-            }
+            StreamData data = futures.sendRequest(target);
+            if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());
             ThreadSafeParserRAII parser(parserFutures);
-            auto doc = parser.parser.iterate(json);
+            auto doc = parser.parser.iterate(data.string);
             out.updateId = doc["lastUpdateId"].get_int64();
             for(auto bid : doc["bids"]){
                 auto ary = bid.value().get_array();

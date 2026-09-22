@@ -11,7 +11,7 @@ class OrderbookArrayHolder {
     public:
     std::pair<std::array<Entry,8192>*,std::array<Entry,8192>*> getArrays(){
         int index = indexPool.getIndex();
-        indexqueue.noMoveEnqueue(index);
+        indexqueue.enqueue(index);
         return {&bidArrays[index], &askArrays[index]};
     }
 

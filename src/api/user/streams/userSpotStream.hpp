@@ -1,6 +1,7 @@
 #pragma once
 #include "api/user/userDataStreams.hpp"
 #include "core/streams/streams.hpp"
+#include "api/common/error/includeErrors.hpp"
 // incomplete just needs the same logic from userFuturesStream
 
 class APIManager::User::SpotStream{
@@ -15,11 +16,13 @@ class APIManager::User::SpotStream{
         {"listenKey":"CFhC7fBYdyq2PoFnsk9U5lvpCEb5fEyQkjCR0DdvPCCzCZMEt9DCGrKzb"}
     */
     public:
-    void getListenKey() {
+    FetchError getListenKey() {
         std::string target = "/fapi/v1/listenKey";
-        auto json = userDataStream.sendRequest(target,http::verb::post,true,false,listenKeyParameter);
-        auto doc = parser.iterate(json);
+        StreamData data = userDataStream.sendRequest(target,http::verb::post,true,false,listenKeyParameter);
+        if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());
+        auto doc = parser.iterate(data.string);
         doc.find_field("listenKey").get_string(listenKey,true);
+        return FetchError(APIError::SUCCESS);
     }
 
     SpotStream(APIManager& base_) : userDataStream(base_.ioc,base_.ctx,base_.hostFutures), APIKey(base_.APIKey),listenKeyParameter("X-MBX-APIKEY",base_.APIKey){
