@@ -248,7 +248,6 @@ class APIManager::Futures::API{
         } 
 
         FetchError fetchOrderbookSnapshot(std::string pair, OrderbookSnapshotIncoming& out) {
-            std::cout << "snapshot ordered" << std::endl;
             const std::string target = "/fapi/v1/depth?symbol="+pair+"&limit=1000";
             StreamData data = futures.sendRequest(target);
             if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());

@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include "api/futures/streams.hpp"
 #include "core/streams/websocketStreamHolder.hpp"
 #include "core/types/status.hpp"
@@ -7,7 +8,7 @@
 class APIManager::Futures::Streams::TradeEventStream{
         std::string pair;
         const std::string target = "/ws/"+ pair +"@trade";
-        WebsocketStreamHolder<TradeEvent,decltype(parseTradeEvent)>* tradeEventStream = nullptr;
+        std::unique_ptr<WebsocketStreamHolder<TradeEvent,decltype(parseTradeEvent)>> tradeEventStream;
         AstraLib::Atomic::PaddedAtomic<bool> connected = false;
         AstraLib::Atomic::PaddedAtomic<bool> connecting = true;
         // Owned by this class. Holds the reason propagated up from the stream holder.
@@ -31,10 +32,9 @@ class APIManager::Futures::Streams::TradeEventStream{
         }
 
         TradeEventStream(APIManager& base_, std::string pair_) : pair(pair_) {
-            std::cout << target << std::endl;
             try {
-                tradeEventStream = new 
-                WebsocketStreamHolder<TradeEvent,decltype(parseTradeEvent)>
+                tradeEventStream = std::make_unique<
+                WebsocketStreamHolder<TradeEvent,decltype(parseTradeEvent)>>
                 (parseTradeEvent,base_.hostFuturesWebsocket,target,base_.websocketParser);
                 auto [status, err] = tradeEventStream->getStatus();
                 if(status == ConnectionStatus::SUCCESS) {
@@ -73,6 +73,5 @@ class APIManager::Futures::Streams::TradeEventStream{
         }   
 
         ~TradeEventStream() {
-            delete tradeEventStream;
-        }
+            }
     };

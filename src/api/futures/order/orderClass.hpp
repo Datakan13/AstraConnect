@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include "api/common/enums/commonTypes.hpp"
 #include "orderResponseEvents.hpp"
 #include <AstraLib/AstraLib.hpp>
@@ -8,20 +9,20 @@ class Order {
     AstraLib::Atomic::Spinlock lock;
     std::string id;
     OrderTypeSent type;
-    OrderResponsePtrWrapper* wrapper = nullptr;
+    std::unique_ptr<OrderResponsePtrWrapper> wrapper;
     OrderSent sent;
     int64_t status;
     auto returnPtr() const -> void* {
         if(!wrapper) return nullptr;
         switch(type) {
             case OrderTypeSent::NEW:
-            return wrapper->newOrder;
+            return wrapper->newOrder.get();
 
             case OrderTypeSent::CANCEL:
-            return wrapper->cancelOrder;
+            return wrapper->cancelOrder.get();
 
             case OrderTypeSent::MODIFY:
-            return wrapper->modifyOrder;
+            return wrapper->modifyOrder.get();
 
             default:
             return nullptr;
@@ -32,7 +33,7 @@ class Order {
         id = id_ ;
         type = type_;
         status = doc["status"].get_int64().value();
-        wrapper = new OrderResponsePtrWrapper(type_,doc);
+        wrapper = std::make_unique<OrderResponsePtrWrapper>(type_,doc);
     }
 
 
@@ -96,7 +97,7 @@ class Order {
     int64_t getUpdateTime() { return wrapper ? wrapper->getUpdateTime(type) : 0; }
 
 
-    Order(std::string& id_, OrderTypeSent type_, simdjson::ondemand::document& doc) :id(id_), type(type_), wrapper(new OrderResponsePtrWrapper(type_,doc)) {
+    Order(std::string& id_, OrderTypeSent type_, simdjson::ondemand::document& doc) :id(id_), type(type_), wrapper(std::make_unique<OrderResponsePtrWrapper>(type_,doc)) {
         status = doc["status"].get_int64().value();
     }
 
@@ -110,9 +111,6 @@ class Order {
                     lock.unlock();
     }
 
-    ~Order() {
-        if(wrapper) delete wrapper;
-    }
 };
 
 class OrderAccessRAII {
@@ -142,13 +140,14 @@ public:
 };
 
 class OrderAccessHolder {
-    std::array<OrderAccessRAII*,1024> array;
     AstraLib::Pools::ThreadSafeIndexPool<1024> pool;
 
     public:
-    OrderAccessRAII* getAccess(Order* order) {
+    // The caller owns the returned handle; its destructor returns the pool index.
+    // Previously this also stashed the raw pointer in an array that was never
+    // cleared, leaving a dangling entry once the caller deleted it.
+    std::unique_ptr<OrderAccessRAII> getAccess(Order* order) {
         int index = pool.getIndex();
-        array[index] = new OrderAccessRAII(order,pool,index);
-        return array[index];
+        return std::make_unique<OrderAccessRAII>(order,pool,index);
     }
 };

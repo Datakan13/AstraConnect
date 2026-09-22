@@ -92,9 +92,7 @@ class APIManager::Orderbook {
                 removeEntry(index, entry.price,isBid);
             }
         } catch (std::runtime_error& e) {
-            std::cout << e.what();
         }catch (std::exception& e) {
-            std::cout << "Unexpected error: " << e.what();
         } 
     }
 
@@ -143,7 +141,6 @@ class APIManager::Orderbook {
                 // Apply the actual update
                 if(arrays.U  <= updateID&& arrays.u >= updateID + 1){
                     updateID = arrays.u;
-                    std::cout << updateID << std::endl;
                     std::array<Entry,8192>& bidArrayRef = *arrays.bidArray;
                     std::array<Entry,8192>& askArrayRef = *arrays.askArray;
                     for(int i = 0; i < arrays.bidCount; i++) {
@@ -159,7 +156,6 @@ class APIManager::Orderbook {
                 isFirst = false;
                 return FetchError(APIError::SUCCESS);
             } catch(std::exception& e) {
-                std::cout << e.what();
                 return FetchError(APIError::UNKNOWN,e.what());
             }
         } else {
@@ -189,7 +185,6 @@ class APIManager::Orderbook {
     void orderbookInitiate() {
         FetchError error = futuresApi.fetchOrderbookSnapshot(pair,orderbookSnapshot);
         if(error) {
-            std::cout << *error.msg << std::endl;
             error = futuresApi.fetchOrderbookSnapshot(pair,orderbookSnapshot);
             if(error) {
                 throw std::runtime_error(*error.msg);
@@ -206,7 +201,6 @@ class APIManager::Orderbook {
         websocketStream.bufferOut.dequeue(); 
         FetchError error = futuresApi.fetchOrderbookSnapshot(pair,orderbookSnapshot);
         if(error) {
-            std::cout << *error.msg << std::endl;
             error = futuresApi.fetchOrderbookSnapshot(pair,orderbookSnapshot);
             if(error) {
                 throw std::runtime_error(*error.msg);
@@ -227,30 +221,24 @@ class APIManager::Orderbook {
                     throw std::runtime_error(status.getErrorMsg());
                 }
             }
-            std::cout << "Orderbook initiated" << std::endl;
             for(;;) {
                 status = applyWebsocket(false);
                 if(status) {
                     if(status.error == APIError::ORDERBOOK_OUTDATED){
-                        std::cout << status.getErrorMsg() << std::endl;
                         break;
                     } else {
-                        std::cout << status.getErrorMsg() << std::endl;
                         break;
                     }
                 }
             }
             error = futuresApi.fetchOrderbookSnapshot(pair,orderbookSnapshot);
             if(error) {
-                std::cout << *error.msg << std::endl;
-                error = futuresApi.fetchOrderbookSnapshot(pair,orderbookSnapshot);
+                    error = futuresApi.fetchOrderbookSnapshot(pair,orderbookSnapshot);
                 if(error) {
-                    std::cout << error.getErrorMsg()<< std::endl;
                 }
             }
             status = applySnapshot();
             if(status) {
-                std::cout << status.getErrorMsg()<< std::endl;
             }
         }
     }

@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include "api/user/userDataStreams.hpp"
 
 #include "api/common/factory/userDataStreamFactory.hpp"
@@ -12,7 +13,7 @@
 
 class APIManager::User::FuturesStream{
     StreamHolder userDataStreamAPI;
-    WebsocketStreamHolder<UserDataStream,decltype(parseUserDataStream)>* userDataStreamWebsocket = nullptr;
+    std::unique_ptr<WebsocketStreamHolder<UserDataStream,decltype(parseUserDataStream)>> userDataStreamWebsocket;
     std::string APIKey;
     std::string listenKey;
     simdjson::ondemand::parser parser;
@@ -44,10 +45,8 @@ class APIManager::User::FuturesStream{
             listenKeyPresent.value.store(true,std::memory_order_release);
             return FetchError(APIError::SUCCESS);
         } catch(std::runtime_error& e) {
-            std::cout << e.what() << std::endl;
             return FetchError(APIError::BOOST_ERROR,std::string(e.what()));
         } catch(std::exception& e) {
-            std::cout << e.what() << std::endl;
             return FetchError(APIError::UNKNOWN,std::string(e.what()));
         }
     }
@@ -105,7 +104,7 @@ class APIManager::User::FuturesStream{
                 return;
             }
             std::string websocketTarget = "/ws/" + listenKey;
-            userDataStreamWebsocket = new WebsocketStreamHolder<UserDataStream,decltype(parseUserDataStream)>(
+            userDataStreamWebsocket = std::make_unique<WebsocketStreamHolder<UserDataStream,decltype(parseUserDataStream)>>(
                 parseUserDataStream,
                 base_.hostFuturesWebsocket,
                 websocketTarget,
@@ -136,10 +135,7 @@ class APIManager::User::FuturesStream{
     }
 
     ~FuturesStream() {
-        delete userDataStreamWebsocket;
-        std::cout << "I at least destroyed the websocket" << std::endl;
         deleteListenKey();
-        std::cout << "Closed it all off" << std::endl;
     }
 };
     

@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include "api/common/enums/commonTypes.hpp"
 #include "api/common/enums/toEnum.hpp"
 #include <simdjson/simdjson.h>
@@ -213,7 +214,6 @@ public:
             count = obj["count"].get_int64().value();
             rateLimits.addRateLimit(rateLimitType,rateLimitInterval,intervalNum,limit,count);
         }} catch(std::exception& e) {
-            std::cout << "Fucked: " << e.what();
         }
     }
 
@@ -698,7 +698,6 @@ public:
             rateLimits.addRateLimit(rateLimitType, rateLimitInterval, intervalNum, limit, count);
         }
     }catch(std::exception& e) {
-            std::cout << "Fucked: " << e.what();
         }
     }
 
@@ -708,20 +707,20 @@ public:
 
 class OrderResponsePtrWrapper {
 public:
-    OrderNewResponse* newOrder = nullptr;
-    OrderCancelResponse* cancelOrder = nullptr;
-    OrderModifyResponse* modifyOrder = nullptr;
-    QueryOrderResponse* queryOrder = nullptr;
-    AccountInfoResponse* accountInfo = nullptr;
-    Error* error = nullptr;
+    std::unique_ptr<OrderNewResponse> newOrder;
+    std::unique_ptr<OrderCancelResponse> cancelOrder;
+    std::unique_ptr<OrderModifyResponse> modifyOrder;
+    std::unique_ptr<QueryOrderResponse> queryOrder;
+    std::unique_ptr<AccountInfoResponse> accountInfo;
+    std::unique_ptr<Error> error;
 
     auto returnPtr(OrderTypeSent event) const -> void* {
         switch (event) {
-            case OrderTypeSent::NEW: return newOrder;
-            case OrderTypeSent::CANCEL: return cancelOrder;
-            case OrderTypeSent::MODIFY: return modifyOrder;
-            case OrderTypeSent::QUERY: return queryOrder;
-            case OrderTypeSent::ACCOUNT_INFO: return accountInfo;
+            case OrderTypeSent::NEW: return newOrder.get();
+            case OrderTypeSent::CANCEL: return cancelOrder.get();
+            case OrderTypeSent::MODIFY: return modifyOrder.get();
+            case OrderTypeSent::QUERY: return queryOrder.get();
+            case OrderTypeSent::ACCOUNT_INFO: return accountInfo.get();
             default: return nullptr;
         }
     }
@@ -982,36 +981,29 @@ public:
         if (doc["status"].get_int64().value() == 200) {
             switch (type) {
                 case OrderTypeSent::NEW:
-                    newOrder = new OrderNewResponse(doc);
+                    newOrder = std::make_unique<OrderNewResponse>(doc);
                     break;
                 case OrderTypeSent::CANCEL:
-                    cancelOrder = new OrderCancelResponse(doc);
+                    cancelOrder = std::make_unique<OrderCancelResponse>(doc);
                     break;
                 case OrderTypeSent::MODIFY:
-                    modifyOrder = new OrderModifyResponse(doc);
+                    modifyOrder = std::make_unique<OrderModifyResponse>(doc);
                     break;
                 case OrderTypeSent::QUERY:
-                    queryOrder = new QueryOrderResponse(doc);
+                    queryOrder = std::make_unique<QueryOrderResponse>(doc);
                     break;
                 case OrderTypeSent::ACCOUNT_INFO:
-                    accountInfo = new AccountInfoResponse(doc);
+                    accountInfo = std::make_unique<AccountInfoResponse>(doc);
                     break;
                 default:
                     break;
             }
         } else {
             auto obj = doc["error"].get_object().value();
-            error = new Error(obj["code"].get_int64().value());
+            error = std::make_unique<Error>(obj["code"].get_int64().value());
             obj["msg"].get_string(error->message);
-            std::cout << "Error: " << error->message << std::endl;
         }
     }
 
-    ~OrderResponsePtrWrapper() {
-        delete newOrder;
-        delete cancelOrder;
-        delete modifyOrder;
-        delete queryOrder;
-    }
 };
 

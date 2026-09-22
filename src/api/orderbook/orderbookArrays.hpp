@@ -36,8 +36,6 @@ class OrderbookArrays{
     int64_t pu;
     OrderbookArrays(std::array<Entry,8192>* bidArray_,std::array<Entry,8192>* askArray_,int64_t bidCount_,int64_t askCount_,int64_t u_,int64_t U_, int64_t pu_) :
      bidArray(bidArray_),askArray(askArray_),bidCount(bidCount_),askCount(askCount_),u(u_), U(U_), pu(pu_) {
-        //std::cout << "[OrderbookArrays ctor] this=" << this << std::endl;
-        //std::cout << bidArray << std::endl;
     }
     OrderbookArrays() {
 

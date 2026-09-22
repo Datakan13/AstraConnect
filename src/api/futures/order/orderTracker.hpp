@@ -1,4 +1,5 @@
 #pragma once 
+#include <memory>
 #include <string>
 #include <simdjson/simdjson.h>
 #include "api/common/enums/commonTypes.hpp"
@@ -15,14 +16,14 @@ enum class GotLock{
 class OrderTracker {
     public:
     AstraLib::Atomic::Spinlock lock;
-    std::unordered_map<std::string,Order*> map;
+    std::unordered_map<std::string,std::unique_ptr<Order>> map;
     OrderAccessHolder holder;
     AstraLib::Buffers::AtomicRingBuffer<int64_t,256> activeOrders;
 
     void registerOrderSent(std::string& id,int64_t timestamp, double price, double quantity, std::string sym, TimeInForce tif,
         OrderSide s, PositionSide pos, OrderType type,simdjson::ondemand::document& doc) {
         AstraLib::Atomic::SpinlockGuard guard(lock);
-        map[id] = new Order(timestamp,pos,s,tif,type,sym,price,quantity);
+        map[id] = std::make_unique<Order>(timestamp,pos,s,tif,type,sym,price,quantity);
         registerOrderResponse(GotLock::GOT,id,OrderTypeSent::NEW,doc);
     }
 
@@ -30,7 +31,7 @@ class OrderTracker {
     void registerOrderResponse(std::string& id,OrderTypeSent type,simdjson::ondemand::document& doc) {
         {
             AstraLib::Atomic::SpinlockGuard mapGuard(lock);
-            map[id] = new Order(id,type,doc);
+            map[id] = std::make_unique<Order>(id,type,doc);
         }
     }
 
@@ -41,11 +42,10 @@ class OrderTracker {
     void updateOrderResponse(std::string& id,OrderTypeSent type,simdjson::ondemand::document& doc) {
         AstraLib::Atomic::SpinlockGuard mapGuard(lock);
         if(!(map.contains(id))) {
-            map[id] = new Order(id, type, doc);  
+            map[id] = std::make_unique<Order>(id, type, doc);  
         }
-        OrderAccessRAII* access = holder.getAccess(map[id]);
-        access->orderPtr->registerResponse(id,type,doc);  
-        delete access;
+        auto access = holder.getAccess(map[id].get());
+        access->orderPtr->registerResponse(id,type,doc);
     }
 
     void removeOrderResponse(std::string& id) {
@@ -70,14 +70,9 @@ class OrderTracker {
         return map[id]->lock;
     }
 
-    OrderAccessRAII* getOrderPtr(std::string& id) {
-        OrderAccessRAII* orderPtr;
-        {
-            AstraLib::Atomic::SpinlockGuard mapGuard(lock);
-            orderPtr = holder.getAccess(map[id]);
-            mapGuard.~SpinlockGuard();
-        }
-        return orderPtr;
+    std::unique_ptr<OrderAccessRAII> getOrderPtr(std::string& id) {
+        AstraLib::Atomic::SpinlockGuard mapGuard(lock);
+        return holder.getAccess(map[id].get());
     }
 
     int64_t getActiveOrderId() {
@@ -92,12 +87,9 @@ class OrderTracker {
 
 class OrderAccess {
     public:
-    OrderAccessRAII* access;
+    std::unique_ptr<OrderAccessRAII> access;
     Order& order;
     OrderAccess(OrderTracker& tracker_, std::string& id) : access(tracker_.getOrderPtr(id)),order(*access->orderPtr) {
-    }
-    ~OrderAccess() {
-        delete access;
     }
 };
 

@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include "api/common/factory/markPriceFactory.hpp"
 #include "api/futures/streams.hpp"
 #include "core/streams/websocketStreamHolder.hpp"
@@ -8,7 +9,7 @@ class APIManager::Futures::Streams::MarkPriceStream{
     const std::string pair;
     const std::string target = "/ws/"+pair+"@markPrice@1s";
 
-    WebsocketStreamHolder<MarkPrice, decltype(parseMarkPrice)>* markPriceStream = nullptr;
+    std::unique_ptr<WebsocketStreamHolder<MarkPrice, decltype(parseMarkPrice)>> markPriceStream;
     AstraLib::Atomic::PaddedAtomic<bool> connected = false;
     AstraLib::Atomic::PaddedAtomic<bool> connecting = true;
     // Owned by this class. Holds the reason propagated up from the stream holder.
@@ -34,8 +35,8 @@ class APIManager::Futures::Streams::MarkPriceStream{
     MarkPriceStream(APIManager& base_,std::string pair_) : pair(pair_) {
         try {
 
-            markPriceStream = new 
-            WebsocketStreamHolder<MarkPrice,decltype(parseMarkPrice)>
+            markPriceStream = std::make_unique<
+            WebsocketStreamHolder<MarkPrice,decltype(parseMarkPrice)>>
             (parseMarkPrice,base_.hostFuturesWebsocket,target,base_.websocketParser);
             auto [status, err] = markPriceStream->getStatus();
             if(status == ConnectionStatus::SUCCESS) {
@@ -73,6 +74,5 @@ class APIManager::Futures::Streams::MarkPriceStream{
     }
 
     ~MarkPriceStream() {
-        delete markPriceStream;
     }
 };

@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <simdjson/simdjson.h>
 #include "api/common/enums/commonTypes.hpp"
 #include "api/common/enums/toEnum.hpp"
@@ -541,12 +542,12 @@ class ConditionalOrderReject {
 
 class PTRWrapper {
     public:
-    AccountUpdate* accountUpdate = nullptr;
-    MarginCall* marginCall = nullptr;
-    OrderUpdate* orderUpdate = nullptr;
-    TradeLite* tradeLite = nullptr;
-    AccountConfigUpdate* accountConfigUpdate = nullptr;
-    StrategyUpdate* strategyUpdate = nullptr;
-    GridUpdate* gridUpdate = nullptr;
-    ConditionalOrderReject* conditionalOrderReject = nullptr;
+    std::unique_ptr<AccountUpdate> accountUpdate;
+    std::unique_ptr<MarginCall> marginCall;
+    std::unique_ptr<OrderUpdate> orderUpdate;
+    std::unique_ptr<TradeLite> tradeLite;
+    std::unique_ptr<AccountConfigUpdate> accountConfigUpdate;
+    std::unique_ptr<StrategyUpdate> strategyUpdate;
+    std::unique_ptr<GridUpdate> gridUpdate;
+    std::unique_ptr<ConditionalOrderReject> conditionalOrderReject;
 };

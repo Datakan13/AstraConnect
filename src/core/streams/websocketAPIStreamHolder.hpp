@@ -4,6 +4,8 @@
 #include <simdjson/simdjson.h>
 #include "core/protocol/requestParameter.hpp"
 #include "core/types/status.hpp"
+#include "api/common/error/includeErrors.hpp"
+#include <memory>
 #include "utils/net/exponentialBackOff.hpp"
 #include "utils/crypto/hmacSha256.hpp"
 #include <chrono>
@@ -21,6 +23,8 @@ class WebsocketAPIStreamHolder {
     boost::beast::flat_buffer buffer;
     ConnectionStatus connectionStatus;
     AstraConnect::Utils::BackoffPolicy backoffPolicy;
+    // Reason the last connection attempt failed; see connectionError().
+    std::unique_ptr<FetchError> lastError;
     
     ConnectionStatus setupConnection() {
         try {
@@ -44,7 +48,7 @@ class WebsocketAPIStreamHolder {
             ws.text(true);
             return ConnectionStatus::SUCCESS;
         } catch(std::exception& e) {
-            std::cout << e.what() << std::endl;
+            lastError = std::make_unique<FetchError>(APIError::BOOST_ERROR,std::string(e.what()));
             return ConnectionStatus::FAIL;
         }    
     }
@@ -60,6 +64,12 @@ class WebsocketAPIStreamHolder {
     // LIMITATION: It can only have the current state of the connection if it's been newly constructed or had a request through it
     bool connectionAlive() {
         return connectionStatus == ConnectionStatus::SUCCESS;
+    }
+
+    // Reason the last connection attempt failed, or nullptr if there was none.
+    // Owned by this class and replaced on each attempt.
+    FetchError* connectionError() {
+        return lastError.get();
     }
 
     // Will return a StreamData struct with components

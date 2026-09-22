@@ -39,7 +39,6 @@ class WebsocketStreamHolder {
     ConnectionStatus setupConnection() {
         connecting.value.store(true,std::memory_order_release);
         lastError.reset();
-        std::cout << "connecting to: " << host << target << std::endl;
         try {
             auto const results = resolver.resolve(host, port);
             ctx.set_default_verify_paths();
@@ -65,7 +64,6 @@ class WebsocketStreamHolder {
         } catch(std::exception& e) {
             lastError = std::make_unique<FetchError>(APIError::BOOST_ERROR,std::string(e.what()));
             connecting.value.store(false,std::memory_order_release);
-            std::cout << e.what() << std::endl;
             return ConnectionStatus::FAIL;
         } 
     }
@@ -107,7 +105,7 @@ class WebsocketStreamHolder {
             }
             return simdjson::padded_string{};
         }catch(std::exception& e) {
-            std::cout << e.what() << std::endl;
+            lastError = std::make_unique<FetchError>(APIError::BOOST_ERROR,std::string(e.what()));
             return simdjson::padded_string{};
         } 
         

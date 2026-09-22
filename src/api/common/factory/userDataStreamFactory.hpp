@@ -2,52 +2,44 @@
 #include <simdjson/simdjson.h>
 #include "api/common/userData/userDataStream.hpp"
 #include "api/common/userData/userDataStreamParsers.hpp"
-#include <iostream>
 // Check userDataStreamClass.hpp for request payloads and implementation functions
-auto parseUserDataStream = [](simdjson::padded_string& json, simdjson::ondemand::parser& parser) {
+//
+// Each branch returns a UserDataStream by value. The previous version allocated one
+// with new, returned a copy of it, and leaked the original on every event.
+inline auto parseUserDataStream = [](simdjson::padded_string& json, simdjson::ondemand::parser& parser) {
     auto doc = parser.iterate(json);
     std::string type;
     doc["e"].get_string(type);
     EventType eventType = returnEventType(type);
-    UserDataStream* userDataStream;
+
     switch (eventType) {
         case EventType::ACCOUNT_UPDATE:
-            accountUpdate(doc.value(),userDataStream);
-            break;
-            
+            return accountUpdate(doc.value());
+
         case EventType::MARGIN_CALL:
-            marginCallUpdate(doc.value(),userDataStream);
-            break;
+            return marginCallUpdate(doc.value());
 
         case EventType::ORDER_UPDATE:
-            orderUpdate(doc.value(),userDataStream);
-            break;
+            return orderUpdate(doc.value());
 
         case EventType::TRADE_LITE:
-            tradeLite(doc.value(),userDataStream);
-            break;
+            return tradeLite(doc.value());
 
         case EventType::ACCOUNT_CONFIG_UPDATE:
-            accountConfigUpdate(doc.value(),userDataStream);
-            break;
+            return accountConfigUpdate(doc.value());
 
         case EventType::STRATEGY_UPDATE:
-            strategyUpdate(doc.value(),userDataStream);
-            break;
+            return strategyUpdate(doc.value());
 
         case EventType::GRID_UPDATE:
-            gridUpdate(doc.value(),userDataStream);
-            break;
+            return gridUpdate(doc.value());
 
         case EventType::CONDITIONAL_ORDER_REJECT:
-            conditionalOrderReject(doc.value(),userDataStream);
-            break;
+            return conditionalOrderReject(doc.value());
 
         default:
-            // Unknown or unsupported event
-            userDataStream = new UserDataStream();
-            std::cerr << "Unknown event type received in user data stream.\n";
-            break;
+            // Unknown or unsupported event; the caller sees EventType::UNKNOWN
+            // and a null returnPtr().
+            return UserDataStream();
     }
-    return *userDataStream;
 };

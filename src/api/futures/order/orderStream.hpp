@@ -146,11 +146,9 @@ class APIManager::Futures::OrderStream{
             RequestParameter<std::string> params = generateParamsForOrder(posSide,orderSide,tif,orderType,pair,pxStr,qtyStr);
             std::string payload = makeRequestFromRequestParameters(requestId,methodPlaceOrder,params);
 
-            std::cout << payload << std::endl;
 
             StreamData data = orderStream.sendRequest(payload);
             if(!data) return RequestStatus::FAIL;
-            std::cout << "response: " << data.string << std::endl;
             simdjson::ondemand::document doc = parser.iterate(data.string);
 
             orderTracker.registerOrderSent(orderID,AstraLib::Time::unixTimestampMS(),px, qty,pair,tif,orderSide,posSide,orderType,doc);
@@ -166,10 +164,8 @@ class APIManager::Futures::OrderStream{
                 }
             }
         } catch (std::runtime_error& e) {
-            std::cout << "Boost or payload issue: " << e.what() << std::endl;
             return RequestStatus::FAIL;
         }catch(std::exception& e ) {
-            std::cout << "Soo error is here: "<< e.what() << std::endl;
             return RequestStatus::FAIL;
         }
     }
@@ -194,11 +190,9 @@ class APIManager::Futures::OrderStream{
             RequestParameter<std::string> params = generateParamsForOrder(binanceId,posSide,orderSide,priceMatch,orderType,pair,pxStr,qtyStr);
             std::string payload = makeRequestFromRequestParameters(requestId,methodModifyOrder,params);
 
-            std::cout << payload << std::endl;
 
             StreamData data = orderStream.sendRequest(payload);
             if(!data) return RequestStatus::FAIL;
-            std::cout << "response: " << data.string << std::endl;
             simdjson::ondemand::document doc = parser.iterate(data.string);
 
             int64_t status = orderTracker.getOrderStatusint(orderID);
@@ -214,10 +208,8 @@ class APIManager::Futures::OrderStream{
             }
             
         } catch (std::runtime_error& e) {
-            std::cout << "Boost or payload issue: " << e.what() << std::endl;
             return RequestStatus::FAIL;
         }catch(std::exception& e ) {
-            std::cout << "Soo error is here: "<< e.what() << std::endl;
             return RequestStatus::FAIL;
         }
     }
@@ -229,11 +221,9 @@ class APIManager::Futures::OrderStream{
             RequestParameter<std::string> params = generateParamsForOrder(binanceId,pair);
             std::string payload = makeRequestFromRequestParameters(requestId,methodCancelOrder,params);
 
-            std::cout << payload << std::endl;
 
             StreamData data = orderStream.sendRequest(payload);
             if(!data) return RequestStatus::FAIL;
-            std::cout << "response: " << data.string << std::endl;
             simdjson::ondemand::document doc = parser.iterate(data.string);
 
             int64_t status = orderTracker.getOrderStatusint(orderID);
@@ -249,10 +239,8 @@ class APIManager::Futures::OrderStream{
             }
             
         } catch (std::runtime_error& e) {
-            std::cout << "Boost or payload issue: " << e.what() << std::endl;
             return RequestStatus::FAIL;
         }catch(std::exception& e ) {
-            std::cout << "Soo error is here: "<< e.what() << std::endl;
             return RequestStatus::FAIL;
         }
     }
@@ -265,11 +253,9 @@ class APIManager::Futures::OrderStream{
             RequestParameter<std::string> params = generateParamsForOrder();
             std::string payload = makeRequestFromRequestParameters(requestId,methodAccountInfo,params);
 
-            std::cout << payload << std::endl;
 
             StreamData data = orderStream.sendRequest(payload);
             if(!data) return RequestStatus::FAIL;
-            std::cout << "response: " << data.string << std::endl;
             simdjson::ondemand::document doc = parser.iterate(data.string);
 
             int64_t status = doc["status"].get_int64().value();
@@ -285,10 +271,8 @@ class APIManager::Futures::OrderStream{
             }
             
         } catch (std::runtime_error& e) {
-            std::cout << "Boost or payload issue: " << e.what() << std::endl;
             return RequestStatus::FAIL;
         }catch(std::exception& e ) {
-            std::cout << "Soo error is here: "<< e.what() << std::endl;
             return RequestStatus::FAIL;
         }
     }
@@ -300,11 +284,9 @@ class APIManager::Futures::OrderStream{
             RequestParameter<std::string> params = generateParamsForOrder(binanceId,pair);
             std::string payload = makeRequestFromRequestParameters(requestId,methodQueryOrder,params);
 
-            std::cout << payload << std::endl;
 
             StreamData data = orderStream.sendRequest(payload);
             if(!data) return RequestStatus::FAIL;
-            std::cout << "response: " << data.string << std::endl;
             simdjson::ondemand::document doc = parser.iterate(data.string);
 
             int64_t status = orderTracker.getOrderStatusint(orderID);
@@ -320,10 +302,8 @@ class APIManager::Futures::OrderStream{
             }
             
         } catch (std::runtime_error& e) {
-            std::cout << "Boost or payload issue: " << e.what() << std::endl;
             return RequestStatus::FAIL;
         }catch(std::exception& e ) {
-            std::cout << "Soo error is here: "<< e.what() << std::endl;
             return RequestStatus::FAIL;
         }
     }
