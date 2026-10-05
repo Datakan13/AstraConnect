@@ -1,0 +1,31 @@
+AstraConnect
+Copyright 2026 Atakan Burak Bacanlı
+
+This product includes software developed by the AstraConnect authors.
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+--------------------------------------------------------------------------------
+Third-party components
+--------------------------------------------------------------------------------
+
+Vendored (redistributed as part of this repository):
+
+  simdjson  --  include/simdjson/
+    Dual licensed under the Apache License, Version 2.0 and the MIT License;
+    either may be chosen. Copyright 2018-2025 The simdjson authors.
+    See include/simdjson/LICENSE and include/simdjson/LICENSE-MIT.
+    https://github.com/simdjson/simdjson
+
+  AstraLib  --  include/AstraLib/
+    Apache License, Version 2.0
+    https://github.com/Datakan13/AstraLib
+
+Linked, not redistributed:
+
+  Boost (Asio, Beast, UUID)
+    Boost Software License, Version 1.0
+    https://www.boost.org/
+
+  OpenSSL 3.x
+    Apache License, Version 2.0
+    https://www.openssl.org/

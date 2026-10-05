@@ -30,6 +30,10 @@ class WebsocketAPIStreamHolder {
         try {
             auto const results = resolver.resolve(host, port);
             ctx.set_default_verify_paths();
+            // Without these the handshake accepts ANY certificate: set_verify_mode
+            // defaults to verify_none, so loading the trust store alone verifies nothing.
+            ws.next_layer().set_verify_mode(ssl::verify_peer);
+            ws.next_layer().set_verify_callback(ssl::host_name_verification(host));
             net::connect(ws.next_layer().next_layer(), results);
 
             // Set SNI Hostname (required by many TLS servers)

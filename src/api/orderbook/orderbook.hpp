@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <AstraLib/AstraLib.hpp>
 #include "model/entry.hpp"
 #include "api/orderbook/threadSafeIndexMap.hpp"
@@ -21,7 +22,21 @@ class APIManager::Orderbook {
     std::thread thread;
     std::string pair;
     AstraLib::Atomic::PaddedAtomic<bool> running{true};
+    // Why the book stopped. Owned here; executionLoop has no caller to return to.
+    std::unique_ptr<FetchError> lastError;
+
+    // Records why we are stopping and halts the loop. Throwing from executionLoop
+    // escaped the thread and called std::terminate instead of reaching anyone.
+    void stop(FetchError err) {
+        lastError = std::make_unique<FetchError>(std::move(err));
+        running.value.store(false,std::memory_order_release);
+    }
     public:
+    // The reason the book stopped, or nullptr while it is still running.
+    FetchError* error() {
+        return lastError.get();
+    }
+
     int64_t updateID;
     // Orderbook arrays
     alignas(64) std::array<Entry, 8192> bids;
@@ -38,67 +53,49 @@ class APIManager::Orderbook {
 
     PriceValid getEntryWithPrice(double price,Entry& out,bool isBid) {
         AstraLib::Atomic::SpinlockGuard guard(updatingLock);
-        IndexedBidAsk ref = priceToIndexMap.returnIndexedBidAsk(price,isBid);
-        if(ref) return PriceValid::NOT_VALID;
-        out.price = bids[ref.index].price;
-        out.volume = asks[ref.index].volume;
+        IndexedBidAsk ref;
+        if(!priceToIndexMap.tryGet(price,isBid,ref)) return PriceValid::NOT_VALID;
+        const auto& book = isBid ? bids : asks;
+        out.price = book[ref.index].price;
+        out.volume = book[ref.index].volume;
         return PriceValid::VALID;
     }
 
     public:
     void processEntry(Entry& entry, bool isBid) {
-        int64_t index;
-        bool isNewEntry = false;
         std::atomic_thread_fence(std::memory_order_acquire);
 
-        try {
-            // Check if entry exists
-            IndexedBidAsk indexedBidAsk = priceToIndexMap.returnIndexedBidAsk(entry.price,isBid);
-            if (!indexedBidAsk) {
-                isNewEntry = true;
-                if(isBid ){
-                    index = freeIndexPoolBid.getIndex();
-                } else {
-                    index = freeIndexPoolAsk.getIndex();
-                }
-                priceToIndexMap.addEntry(entry.price,index,isBid);
-            } else {
-                index = indexedBidAsk.index;
-            }
+        IndexedBidAsk existing;
+        const bool found = priceToIndexMap.tryGet(entry.price,isBid,existing);
 
-            // If volume is non-zero, process normally
-            if (entry.volume != 0) {    
-                auto& book = isBid ? bids : asks;
-                if (isNewEntry) {
-                    book[index].assignValues(entry.price, entry.volume);
-                    return;
-                } 
-                if(indexedBidAsk.isBid == isBid) {
-                    book[index].volume += entry.volume;
-                } else {
-                    removeEntry(index,entry.price,indexedBidAsk.isBid);
-                    if(isBid ){
-                        index = freeIndexPoolBid.getIndex();
-                    } else {
-                        index = freeIndexPoolAsk.getIndex();
-                    }
-                    priceToIndexMap.addEntry(entry.price,index,isBid);
-                    book[index].assignValues(entry.price, entry.volume);
-                }
-                
+        // A depth event carries the ABSOLUTE quantity for a level, so quantity 0
+        // means remove it. Binance documents that a removal can arrive for a level
+        // we never had, which is normal and must be ignored rather than handing a
+        // bogus index back to the pool.
+        if(entry.volume == 0) {
+            if(found) removeEntry(existing.index, entry.price, isBid);
+            return;
+        }
 
-            } else {
-                // Volume 0 = removal
-                removeEntry(index, entry.price,isBid);
-            }
-        } catch (std::runtime_error& e) {
-        }catch (std::exception& e) {
-        } 
+        int64_t index;
+        if(found) {
+            index = existing.index;
+        } else {
+            index = isBid ? freeIndexPoolBid.getIndex() : freeIndexPoolAsk.getIndex();
+            priceToIndexMap.addEntry(entry.price,index,isBid);
+        }
+
+        // Absolute quantity: assign, never accumulate.
+        auto& book = isBid ? bids : asks;
+        book[index].assignValues(entry.price, entry.volume);
     }
 
     private:
     // Removes an entry from both index map and requeues it
-    void removeEntry(int64_t& index, int64_t price,bool isBid) {
+    // `price` must stay a double: taking it as int64_t truncated 86106.90 to 86106,
+    // so the map erase missed and the index went back to the pool while the map
+    // still pointed at it.
+    void removeEntry(int64_t index, double price,bool isBid) {
         priceToIndexMap.removeEntry(price,isBid);
         if(isBid){
             freeIndexPoolBid.returnIndex(index);
@@ -148,12 +145,11 @@ class APIManager::Orderbook {
                         processEntry(bidArrayRef[i],true);
                     }
                     for(int i = 0; i < arrays.askCount; i++) {
-                        processEntry(askArrayRef[i],true);
+                        processEntry(askArrayRef[i],false);
                     }
                 } else{
                     return FetchError(APIError::RETRY);
                 }
-                isFirst = false;
                 return FetchError(APIError::SUCCESS);
             } catch(std::exception& e) {
                 return FetchError(APIError::UNKNOWN,e.what());
@@ -169,7 +165,7 @@ class APIManager::Orderbook {
                         processEntry(bidArrayRef[i],true);
                     }
                     for(int i = 0; i < arrays.askCount; i++) {
-                        processEntry(askArrayRef[i],true);
+                        processEntry(askArrayRef[i],false);
                     }
                     return FetchError(APIError::SUCCESS);
                 } else {
@@ -187,12 +183,12 @@ class APIManager::Orderbook {
         if(error) {
             error = futuresApi.fetchOrderbookSnapshot(pair,orderbookSnapshot);
             if(error) {
-                throw std::runtime_error(*error.msg);
+                stop(std::move(error)); return;
             }
         }
         FetchError status = applySnapshot();
         if(status) {
-            throw std::runtime_error(status.getErrorMsg());
+            stop(std::move(status)); return;
         }
     }
 
@@ -203,12 +199,12 @@ class APIManager::Orderbook {
         if(error) {
             error = futuresApi.fetchOrderbookSnapshot(pair,orderbookSnapshot);
             if(error) {
-                throw std::runtime_error(*error.msg);
+                stop(std::move(error)); return;
             }
         }
         FetchError status = applySnapshot();
         if(status) {
-            throw std::runtime_error(status.getErrorMsg());
+            stop(std::move(status)); return;
         }
         while(running.value.load(std::memory_order_acquire)) {
             status = applyWebsocket();
@@ -218,7 +214,7 @@ class APIManager::Orderbook {
                     orderbookInitiate();
                 }
                 if(status.error == APIError::UNKNOWN) {
-                    throw std::runtime_error(status.getErrorMsg());
+                    stop(std::move(status)); return;
                 }
             }
             for(;;) {

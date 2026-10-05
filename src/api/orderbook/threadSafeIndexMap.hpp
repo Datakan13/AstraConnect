@@ -13,13 +13,16 @@ class alignas(64) ThreadSafeIndexMap{
     AstraLib::Atomic::Spinlock lock;
     
     public:
-    IndexedBidAsk returnIndexedBidAsk(double price,bool isBid) {
-        // default indexedBidAsk class is initalized false for valid IndexedBidAsk
-        if(!contains(price,isBid)) return IndexedBidAsk();
-
-        IndexedBidAsk result = (isBid) ? priceToIndexMapBids[price] : priceToIndexMapAsks[price];
-
-        return result;
+    // Returns true and fills `out` when the price is present.
+    // One lock for the whole lookup, and `find` rather than `operator[]` so a miss
+    // does not silently insert a default entry.
+    bool tryGet(double price, bool isBid, IndexedBidAsk& out) {
+        AstraLib::Atomic::SpinlockGuard guard(lock);
+        const auto& map = isBid ? priceToIndexMapBids : priceToIndexMapAsks;
+        auto it = map.find(price);
+        if(it == map.end()) return false;
+        out = it->second;
+        return true;
     }
 
     bool contains(double price,bool isBid){
@@ -27,7 +30,7 @@ class alignas(64) ThreadSafeIndexMap{
         return (isBid) ? !(priceToIndexMapBids.find(price) == priceToIndexMapBids.end()): !(priceToIndexMapAsks.find(price) == priceToIndexMapAsks.end());
     }
 
-    void addEntry(double price,double index, bool isBid){
+    void addEntry(double price,int64_t index, bool isBid){
         AstraLib::Atomic::SpinlockGuard guard(lock);
         if(isBid) {
             priceToIndexMapBids[price].index = index;

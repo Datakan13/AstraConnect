@@ -108,6 +108,9 @@ class APIManager::Futures::API{
 
         FetchError fetchOrderbookSnapshot(std::string pair, OrderbookSnapshotIncoming& out) {
             const std::string target = "/fapi/v1/depth?symbol="+pair+"&limit=1000";
+            // This fills `out` from scratch; without the reset a second call appends
+            // to the previous snapshot and the read cursors never rewind.
+            out.reset();
             StreamData data = futures.sendRequest(target);
             if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());
             ThreadSafeParserRAII parser(parserFutures);
@@ -139,6 +142,7 @@ class APIManager::Futures::API{
                 }
                 out.registerEntry(price,volume,false);
             }
+            return FetchError(APIError::SUCCESS);
         }
 
         API(APIManager& base_) : futures(base_.ioc,base_.ctx,base_.hostFutures){
