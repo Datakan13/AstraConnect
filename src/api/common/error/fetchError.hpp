@@ -50,5 +50,35 @@ FetchError getErrorFromSimdjson(simdjson::ondemand::object& obj) noexcept {
         // Missing "msg" field, or invalid type
         msg = "";
     }
-    return FetchError(fromErrorCode(obj["code"].get_int64().value()),msg);
+    int64_t code;
+    // .value() would throw here and noexcept turns that into std::terminate
+    if (obj["code"].get_int64().get(code)) return FetchError(APIError::UNKNOWN,msg);
+    return FetchError(fromErrorCode(static_cast<int>(code)),msg);
+}
+
+// Binance REST errors are a top-level {"code":-1121,"msg":"Invalid symbol."} sent in
+// place of the expected payload. Returns SUCCESS when doc is anything else.
+// Leaves doc rewound so the caller can parse it from the start.
+inline FetchError getErrorFromDocument(simdjson::ondemand::document& doc) noexcept {
+    FetchError result(APIError::SUCCESS);
+    simdjson::ondemand::json_type type;
+    simdjson::ondemand::object obj;
+    int64_t code;
+    if (!doc.type().get(type) && type == simdjson::ondemand::json_type::object
+        && !doc.get_object().get(obj) && !obj["code"].get_int64().get(code)) {
+        std::string_view msg;
+        if (obj["msg"].get_string().get(msg)) msg = "";
+        result = FetchError(fromErrorCode(static_cast<int>(code)),std::string(msg));
+    }
+    doc.rewind();
+    return result;
+}
+
+// Iterates the response body into doc and checks it for a Binance error.
+// Returns SUCCESS only when doc is ready to be parsed as the expected payload.
+inline FetchError iterateResponse(simdjson::ondemand::parser& parser, simdjson::padded_string& body, simdjson::ondemand::document& doc) noexcept {
+    if (auto ec = parser.iterate(body).get(doc)) {
+        return FetchError(APIError::BAD_FIELD,std::string("Failed to parse response. error: ") + simdjson::error_message(ec));
+    }
+    return getErrorFromDocument(doc);
 }

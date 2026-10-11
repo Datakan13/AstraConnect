@@ -18,8 +18,6 @@ class WebsocketAPIStreamHolder {
     beast::websocket::stream<ssl::stream<tcp::socket>> ws;
     tcp::resolver resolver;
     std::string port = "443";
-    std::string APIKey;
-    std::string privateKey;
     boost::beast::flat_buffer buffer;
     ConnectionStatus connectionStatus;
     AstraConnect::Utils::BackoffPolicy backoffPolicy;
@@ -107,14 +105,8 @@ class WebsocketAPIStreamHolder {
         return data;
     }
 
-    std::string getHMAC(std::string& data) {
-        return hmac_sha256(privateKey,data);
-    }
-
     // WARNING: the caller needs to check if the connection is alive with connectionAlive() since it is non-throwing
     WebsocketAPIStreamHolder(std::string host_, std::string& target_) : host(host_), target(target_),  ctx((net::ssl::context::tls_client)), ws(ioc,ctx), resolver(ioc) {
-        APIKey = std::getenv("API_KEY");
-        privateKey = std::getenv("PRIVATE_KEY");
         connectionStatus = setupConnection();
         if(connectionStatus != ConnectionStatus::SUCCESS) connectionStatus = exponentialBackOff();
     };

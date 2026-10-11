@@ -39,6 +39,7 @@ every bug found so far turned up in payloads that were in exactly that state.
 | [Open Interest Statistics](rest/futures-open-interest-hist.md) | verified | live `GET /futures/data/openInterestHist` |
 | [Exchange Information](rest/futures-exchange-info.md) | verified | live `GET /fapi/v1/exchangeInfo` |
 | [Kline / Candlestick](rest/spot-klines.md) | verified | live `GET /api/v3/klines` |
+| [Kline / Candlestick (Futures)](rest/futures-klines.md) | verified | live `GET /fapi/v1/klines` |
 | [Listen Key](rest/futures-listen-key.md) | verified | official docs |
 | [Listen Key (Spot)](rest/spot-listen-key.md) | unverified | — |
 

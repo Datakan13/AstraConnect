@@ -274,6 +274,7 @@ graph LR
     FA                        --> EI
     FA                        --> OI
     FA                        --> OBS
+    FA                        --> CN
     SA[spot/api.hpp]          --> MGR
     SA                        --> SH
     SA                        --> TP

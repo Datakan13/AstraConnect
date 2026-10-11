@@ -8,7 +8,10 @@ double setPrecision(double value, int decimals) {
 }
 
 int main() {
-    APIManager manager;
+    // The library does not read the environment; this test chooses to
+    const char* apiKey = std::getenv("API_KEY");
+    const char* privateKey = std::getenv("PRIVATE_KEY");
+    APIManager manager(Credentials{apiKey ? apiKey : "", privateKey ? privateKey : ""});
     APIManager::Futures::API futuresAPI(manager);
     AstraLib::Buffers::AtomicRingBuffer<Candle,2048> vec;
     AstraLib::Buffers::AtomicRingBuffer<OpenInterest,1024> vec2;

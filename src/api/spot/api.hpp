@@ -20,7 +20,8 @@ class APIManager::Spot::API{
             if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());
 
             ThreadSafeParserRAII parser(parserSpot);
-            auto candleArray = parser.parser.iterate(data.string);            
+            simdjson::ondemand::document candleArray;
+            if(FetchError err = iterateResponse(parser.parser,data.string,candleArray)) return err;
             int index = 0;
             Candle outCandle;
             try {
@@ -62,14 +63,8 @@ class APIManager::Spot::API{
                     index = 0;
                 }
             } catch(std::exception& e) {
-                try {
-                    if(candleArray.find_field("error")) {
-                        auto obj = candleArray["error"].get_object().value();
-                        return getErrorFromSimdjson(obj);
-                    }
-                } catch(std::exception& e) {
-                    return FetchError(APIError::BAD_FIELD,std::string{"Failed to parse a field. error: " + std::string(e.what())});
-                }
+                outputBuff.clearBuffer();
+                return FetchError(APIError::BAD_FIELD,std::string{"Failed to parse a field. error: " + std::string(e.what())});
             }
             
             return FetchError(APIError::SUCCESS);

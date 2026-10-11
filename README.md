@@ -48,16 +48,26 @@ cmake --build build
 ```
 
 AstraConnect is header-only. Add `src/` and `include/` to your include path and
-`#include <api/AstraConnect.hpp>`. Credentials are read from the `API_KEY` and
-`PRIVATE_KEY` environment variables — both must be set, as a missing one is currently a
-null dereference rather than an error.
+`#include <api/AstraConnect.hpp>`.
+
+Credentials are passed to `APIManager`; the library never reads them from the
+environment, so load them from wherever your application keeps secrets:
+
+```cpp
+APIManager market;                                  // market data only
+APIManager trading(Credentials{apiKey, privateKey}); // order entry and user data
+```
+
+REST market data and market streams need no keys. `Futures::OrderStream` needs both;
+`User::FuturesStream` needs the API key. Constructing either without them throws
+`std::invalid_argument` before any connection is opened.
 
 ## Components
 
 Everything hangs off a single `APIManager`, which owns the io_context, the TLS context and
 the shared parser.
 
-- **REST** — `Futures::API` (open interest, exchange info, depth snapshot), `Spot::API` (klines)
+- **REST** — `Futures::API` (open interest, exchange info, klines, depth snapshot), `Spot::API` (klines)
 - **Market streams** — `Futures::Streams::TradeEventStream`, `MarkPriceStream`
 - **User data** — `User::FuturesStream`
 - **Order entry** — `Futures::OrderStream`, over the WebSocket API with HMAC-SHA256 signing

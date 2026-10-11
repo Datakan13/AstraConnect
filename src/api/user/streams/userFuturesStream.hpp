@@ -12,9 +12,10 @@
 #include "core/streams/streams.hpp"
 
 class APIManager::User::FuturesStream{
+    // Declared first so a missing key throws before anything connects
+    std::string APIKey;
     StreamHolder userDataStreamAPI;
     std::unique_ptr<WebsocketStreamHolder<UserDataStream,decltype(parseUserDataStream)>> userDataStreamWebsocket;
-    std::string APIKey;
     std::string listenKey;
     simdjson::ondemand::parser parser;
     RequestParameter<std::string> listenKeyParameter;
@@ -37,7 +38,8 @@ class APIManager::User::FuturesStream{
         StreamData data = userDataStreamAPI.sendRequest(target,http::verb::post,true,false,listenKeyParameter);
         if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());
         try{
-            auto doc = parser.iterate(data.string);
+            simdjson::ondemand::document doc;
+            if(FetchError err = iterateResponse(parser,data.string,doc)) return err;
             doc.find_field("listenKey").get_string(listenKey);
             listenKeyPresent.value.store(true,std::memory_order_release);
             return FetchError(APIError::SUCCESS);
@@ -52,6 +54,11 @@ class APIManager::User::FuturesStream{
         std::string target = "/fapi/v1/listenKey";
         StreamData data = userDataStreamAPI.sendRequest(target,http::verb::delete_,true,false,listenKeyParameter);
         if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());
+        // Success is an empty {}; anything unparseable is not an error body either
+        simdjson::ondemand::document doc;
+        if(!parser.iterate(data.string).get(doc)) {
+            if(FetchError err = getErrorFromDocument(doc)) return err;
+        }
         return FetchError(APIError::SUCCESS);
     }
 
@@ -76,9 +83,9 @@ class APIManager::User::FuturesStream{
         return {ConnectionStatus::SUCCESS, nullptr};
     }
 
-    FuturesStream(APIManager& base_) : userDataStreamAPI(base_.ioc,base_.ctx,base_.hostFutures),
-        APIKey(base_.APIKey),
-        listenKeyParameter("X-MBX-APIKEY",base_.APIKey), 
+    FuturesStream(APIManager& base_) : APIKey(base_.requireAPIKey("User::FuturesStream")),
+        userDataStreamAPI(base_.ioc,base_.ctx,base_.hostFutures),
+        listenKeyParameter("X-MBX-APIKEY",APIKey), 
         requestId("X-Request-ID", boost::uuids::to_string(boost::uuids::random_generator()())),
         method("method", "userDataStream.start"),
         parameters("parameters")

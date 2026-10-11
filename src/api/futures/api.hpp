@@ -9,6 +9,7 @@
 
 #include "model/exchangeInfo.hpp"
 #include "model/openInterest.hpp"
+#include "model/candle.hpp"
 
 #include "api/orderbook/orderbookSnapshotIncoming.hpp"
 
@@ -16,6 +17,66 @@ class APIManager::Futures::API{
         StreamHolder futures;
         ThreadSafeParser parserFutures;
         public:
+        // Wire format: doc/payloads/rest/futures-klines.md
+
+        // pair: e.g. "BTCUSDT" timeframe: e.g. "5m", "1h"
+        FetchError fetchCandles(AstraLib::Buffers::AtomicRingBuffer<Candle,2048>& outputBuff, const std::string pair,  const std::string timeframe) {
+
+            const std::string target = "/fapi/v1/klines?symbol="+ pair+"&interval=" + timeframe;
+            StreamData data = futures.sendRequest(target);
+            if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());
+
+            ThreadSafeParserRAII parser(parserFutures);
+            simdjson::ondemand::document candleArray;
+            if(FetchError err = iterateResponse(parser.parser,data.string,candleArray)) return err;
+            int index = 0;
+            Candle outCandle;
+            try {
+                for(auto candle : candleArray) {
+                    auto iterate = candle.value().get_array().value();
+                    for ( auto field : iterate) {
+                        switch (index)
+                        {
+                        case 0:
+                            outCandle.timestampOpen = field.value().get_int64().value();
+                            break;
+                        case 1:
+                            outCandle.open = field.value().get_double_in_string().value();
+                            break;
+                        case 2:
+                            outCandle.high = field.value().get_double_in_string().value();
+                            break;
+                        case 3:
+                            outCandle.low = field.value().get_double_in_string().value();
+                            break;
+                        case 4:
+                            outCandle.close = field.value().get_double_in_string().value();
+                            break;
+                        case 5:
+                            outCandle.volume = field.value().get_double_in_string().value();
+                            break;
+                        case 6:
+                            outCandle.timestampClose = field.value().get_int64().value();
+                            break;
+                        case 7:
+                            outCandle.quoteVolume = field.value().get_double_in_string().value();
+                            break;
+                        default:
+                            break;
+                        }
+                        index++;
+                    }
+                    outputBuff.enqueue(outCandle);
+                    index = 0;
+                }
+            } catch(std::exception& e) {
+                outputBuff.clearBuffer();
+                return FetchError(APIError::BAD_FIELD,std::string{"Failed to parse a field. error: " + std::string(e.what())});
+            }
+            
+            return FetchError(APIError::SUCCESS);
+        }
+
         // Wire format: doc/payloads/rest/futures-open-interest-hist.md
     
         // Pair: Must be all capital e.g. "BTCUSDT"
@@ -26,7 +87,8 @@ class APIManager::Futures::API{
             if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());
 
             ThreadSafeParserRAII parser(parserFutures);
-            auto interestArray = parser.parser.iterate(data.string);
+            simdjson::ondemand::document interestArray;
+            if(FetchError err = iterateResponse(parser.parser,data.string,interestArray)) return err;
             try {
                 OpenInterest interestFrameHolder;
                 for(auto interestFrame : interestArray) {
@@ -38,14 +100,7 @@ class APIManager::Futures::API{
                 }
             } catch(std::exception& e) {
                 outputBuff.clearBuffer();
-                try {
-                    if(interestArray.find_field("error")) {
-                        auto obj = interestArray["error"].get_object().value();
-                        return getErrorFromSimdjson(obj);
-                    }
-                } catch(std::exception& e) {
-                    return FetchError(APIError::BAD_FIELD,std::string{"Failed to parse a field. error: " + std::string(e.what())});
-                }
+                return FetchError(APIError::BAD_FIELD,std::string{"Failed to parse a field. error: " + std::string(e.what())});
             }
             return FetchError(APIError::SUCCESS);
         }
@@ -59,7 +114,8 @@ class APIManager::Futures::API{
             if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());
 
             ThreadSafeParserRAII parser(parserFutures);
-            auto interestCurrent = parser.parser.iterate(data.string);
+            simdjson::ondemand::document interestCurrent;
+            if(FetchError err = iterateResponse(parser.parser,data.string,interestCurrent)) return err;
             
             try {
                 ref.openInterest = interestCurrent.find_field("openInterest").value().get_double_in_string().value();
@@ -78,32 +134,38 @@ class APIManager::Futures::API{
             StreamData data = futures.sendRequest(target);
             if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());
             ThreadSafeParserRAII parser(parserFutures);
-            auto doc = parser.parser.iterate(data.string);
+            simdjson::ondemand::document doc;
+            if(FetchError err = iterateResponse(parser.parser,data.string,doc)) return err;
             std::string pair_;
             std::string field_;
-            for(auto symbol : doc["symbols"]) {
-                auto obj = symbol.get_object().value();
-                obj["symbol"].get_string(pair_);
-                if(pair_ == pair) {
-                    for(auto field : obj["filters"]) {
-                        field["filterType"].get_string(field_);
-                        if(field_ == "PRICE_FILTER") {
-                            out.maxPrice = field["maxPrice"].get_double_in_string().value();
-                            out.minPrice = field["minPrice"].get_double_in_string().value();
-                            out.tickSize = field["tickSize"].get_double_in_string().value();
+            try {
+                for(auto symbol : doc["symbols"]) {
+                    auto obj = symbol.get_object().value();
+                    obj["symbol"].get_string(pair_);
+                    if(pair_ == pair) {
+                        for(auto field : obj["filters"]) {
+                            field["filterType"].get_string(field_);
+                            if(field_ == "PRICE_FILTER") {
+                                out.maxPrice = field["maxPrice"].get_double_in_string().value();
+                                out.minPrice = field["minPrice"].get_double_in_string().value();
+                                out.tickSize = field["tickSize"].get_double_in_string().value();
+                            }
+                            if(field_ == "LOT_SIZE") {
+                                out.maxQuantity = field["maxQty"].get_double_in_string().value();
+                                out.minQuantity = field["minQty"].get_double_in_string().value();
+                                out.stepsize = field["stepSize"].get_double_in_string().value();
+                            }
+                            if(field_ == "MIN_NOTIONAL") {
+                                out.minNotional = field["notional"].get_double_in_string().value();
+                            }
                         }
-                        if(field_ == "LOT_SIZE") {
-                            out.maxQuantity = field["maxQty"].get_double_in_string().value();
-                            out.minQuantity = field["minQty"].get_double_in_string().value();
-                            out.stepsize = field["stepSize"].get_double_in_string().value();
-                        }
-                        if(field_ == "MIN_NOTIONAL") {
-                            out.minNotional = field["notional"].get_double_in_string().value();
-                        }
+                        return FetchError(APIError::SUCCESS);
                     }
                 }
+            } catch(std::exception& e) {
+                return FetchError(APIError::BAD_FIELD,std::string{"Failed to parse a field. error: " + std::string(e.what())});
             }
-            return FetchError(APIError::SUCCESS);
+            return FetchError(APIError::BAD_SYMBOL,"Pair not found in exchange info: " + pair);
         } 
 
         FetchError fetchOrderbookSnapshot(std::string pair, OrderbookSnapshotIncoming& out) {
@@ -114,33 +176,40 @@ class APIManager::Futures::API{
             StreamData data = futures.sendRequest(target);
             if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());
             ThreadSafeParserRAII parser(parserFutures);
-            auto doc = parser.parser.iterate(data.string);
-            out.updateId = doc["lastUpdateId"].get_int64();
-            for(auto bid : doc["bids"]){
-                auto ary = bid.value().get_array();
-                double price = 0;
-                double volume;
-                for(auto val : ary){
-                    if(price != 0){
-                        volume = val.value().get_double_in_string().value();
-                    } else {
-                        price = val.value().get_double_in_string().value();
+            simdjson::ondemand::document doc;
+            if(FetchError err = iterateResponse(parser.parser,data.string,doc)) return err;
+            try {
+                out.updateId = doc["lastUpdateId"].get_int64();
+                for(auto bid : doc["bids"]){
+                    auto ary = bid.value().get_array();
+                    double price = 0;
+                    double volume;
+                    for(auto val : ary){
+                        if(price != 0){
+                            volume = val.value().get_double_in_string().value();
+                        } else {
+                            price = val.value().get_double_in_string().value();
+                        }
                     }
+                    out.registerEntry(price,volume,true);
                 }
-                out.registerEntry(price,volume,true);
-            }
-            for(auto ask :  doc["asks"]){
-                auto ary = ask.value().get_array();
-                double price = 0;
-                double volume;
-                for(auto val : ary){
-                    if(price != 0){
-                        volume = val.value().get_double_in_string().value();
-                    } else {
-                        price = val.value().get_double_in_string().value();
+                for(auto ask :  doc["asks"]){
+                    auto ary = ask.value().get_array();
+                    double price = 0;
+                    double volume;
+                    for(auto val : ary){
+                        if(price != 0){
+                            volume = val.value().get_double_in_string().value();
+                        } else {
+                            price = val.value().get_double_in_string().value();
+                        }
                     }
+                    out.registerEntry(price,volume,false);
                 }
-                out.registerEntry(price,volume,false);
+            } catch(std::exception& e) {
+                // A half-filled snapshot would be applied as if it were the whole book
+                out.reset();
+                return FetchError(APIError::BAD_FIELD,std::string{"Failed to parse a field. error: " + std::string(e.what())});
             }
             return FetchError(APIError::SUCCESS);
         }

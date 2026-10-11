@@ -6,11 +6,12 @@
 #include "api/futures/order/orderTracker.hpp"
 
 class APIManager::Futures::OrderStream{
+    // Declared before orderStream so missing keys throw before it connects
+    RequestParameter<std::string> APIKey;
+    std::string privateKey;
     std::string target = "/ws-fapi/v1";
     WebsocketAPIStreamHolder orderStream;
-    RequestParameter<std::string> APIKey;
     RequestParameter<std::string> HMACKey;
-    std::string privateKey;
     PlaceOrderParameters placeOrder;
     RequestParameter<std::string> methodPlaceOrder;
     RequestParameter<std::string> methodModifyOrder;
@@ -323,8 +324,8 @@ class APIManager::Futures::OrderStream{
         info.getAccountInfo(id,out);
     }
 
-    OrderStream(APIManager& base_) : orderStream(base_.hostFuturesWebsocketAPI, target),
-    privateKey(base_.PrivateKey), APIKey("apiKey",base_.APIKey), HMACKey("signature"),
+    OrderStream(APIManager& base_) : APIKey("apiKey",base_.requireAPIKey("Futures::OrderStream")),
+    privateKey(base_.requirePrivateKey("Futures::OrderStream")), orderStream(base_.hostFuturesWebsocketAPI, target), HMACKey("signature"),
     methodPlaceOrder("method","order.place"), methodModifyOrder("method","order.modify"), methodCancelOrder("method","order.cancel"), methodQueryOrder("method","order.status"),
     methodAccountInfo("method","v2/account.balance"),
     requestId("id"), orderContext(orderTracker), orderId("orderId"){
