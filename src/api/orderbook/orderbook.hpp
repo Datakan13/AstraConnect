@@ -1,8 +1,11 @@
 #pragma once
 #include <memory>
+#include <span>
+#include <cctype>
 #include <AstraLib/AstraLib.hpp>
 #include "model/entry.hpp"
-#include "api/orderbook/threadSafeIndexMap.hpp"
+#include "model/exchangeInfo.hpp"
+#include "api/orderbook/topBook.hpp"
 #include "api/orderbook/orderbookSnapshotIncoming.hpp"
 #include "model/error.hpp"
 #include "api/orderbook/orderbookArrays.hpp"
@@ -14,240 +17,233 @@
 #include "core/types/status.hpp"
 
 
+// Local copy of a futures order book, kept from a REST snapshot plus the depth diff
+// stream. Each side is a SortedBook: a diff finds its level by price through the
+// side's bitmap blocks, so the book is always sorted and the best levels are a
+// highest/lowest-set-bit away.
+//
+// All reads take the same lock as the update thread and copy out, so the results are
+// a consistent view of one moment of the book.
 class APIManager::Orderbook {
-    WebsocketStreamHolder<OrderbookArrays,decltype(DecodeEntries)> websocketStream;
+    // Declared before websocketStream: its thread starts decoding into these slots at once
+    std::unique_ptr<OrderbookArrayHolder> arrayHolder;
+    WebsocketStreamHolder<OrderbookArrays,DepthDecoder> websocketStream;
     OrderbookSnapshotIncoming orderbookSnapshot;
     APIManager::Futures::API& futuresApi;
     AstraLib::Atomic::Spinlock updatingLock;
     std::thread thread;
     std::string pair;
     AstraLib::Atomic::PaddedAtomic<bool> running{true};
+    AstraLib::Atomic::PaddedAtomic<bool> synced{false};
     // Why the book stopped. Owned here; executionLoop has no caller to return to.
     std::unique_ptr<FetchError> lastError;
+
+    // Heap allocated: together they are close to a megabyte
+    std::unique_ptr<SortedBook<true>> bidBook;
+    std::unique_ptr<SortedBook<false>> askBook;
+
+    // Final update id applied to the book; each event must continue from it.
+    int64_t updateID{0};
+
+    static constexpr int snapshotAttempts = 3;
+    // Snapshot/stream alignment failures in a row before giving up.
+    static constexpr int maxFailedSyncs = 5;
 
     // Records why we are stopping and halts the loop. Throwing from executionLoop
     // escaped the thread and called std::terminate instead of reaching anyone.
     void stop(FetchError err) {
         lastError = std::make_unique<FetchError>(std::move(err));
+        synced.value.store(false,std::memory_order_release);
         running.value.store(false,std::memory_order_release);
     }
-    public:
-    // The reason the book stopped, or nullptr while it is still running.
-    FetchError* error() {
-        return lastError.get();
+
+    // Returns false when a new level does not fit its side.
+    bool processEntry(const Entry& entry, bool isBid) {
+        return isBid ? bidBook->update(entry.price, entry.volume) : askBook->update(entry.price, entry.volume);
     }
 
-    int64_t updateID;
-    // Orderbook arrays
-    alignas(64) std::array<Entry, 8192> bids;
-    char pad0[64];
-    alignas(64) std::array<Entry, 8192> asks;
-    
-    // Maps price -> array index
-    ThreadSafeIndexMap priceToIndexMap;
-
-    private:
-    // Free index pool for depth entries
-    AstraLib::Pools::ThreadSafeIndexPool<8192> freeIndexPoolBid;
-    AstraLib::Pools::ThreadSafeIndexPool<8192> freeIndexPoolAsk;
-
-    PriceValid getEntryWithPrice(double price,Entry& out,bool isBid) {
+    // Replaces the whole book with the fetched snapshot. The snapshot used to be
+    // applied on top of the old book, so levels removed while we were out of sync
+    // stayed forever.
+    void applySnapshot() {
         AstraLib::Atomic::SpinlockGuard guard(updatingLock);
-        IndexedBidAsk ref;
-        if(!priceToIndexMap.tryGet(price,isBid,ref)) return PriceValid::NOT_VALID;
-        const auto& book = isBid ? bids : asks;
-        out.price = book[ref.index].price;
-        out.volume = book[ref.index].volume;
-        return PriceValid::VALID;
+        bidBook->clear();
+        askBook->clear();
+        // A snapshot holds at most 1000 levels per side, so neither side can fill up
+        for(Entry entry = orderbookSnapshot.getBid(); entry.price != 0; entry = orderbookSnapshot.getBid()) {
+            processEntry(entry,true);
+        }
+        for(Entry entry = orderbookSnapshot.getAsk(); entry.price != 0; entry = orderbookSnapshot.getAsk()) {
+            processEntry(entry,false);
+        }
+        updateID = orderbookSnapshot.updateId;
     }
 
-    public:
-    void processEntry(Entry& entry, bool isBid) {
-        std::atomic_thread_fence(std::memory_order_acquire);
-
-        IndexedBidAsk existing;
-        const bool found = priceToIndexMap.tryGet(entry.price,isBid,existing);
-
-        // A depth event carries the ABSOLUTE quantity for a level, so quantity 0
-        // means remove it. Binance documents that a removal can arrive for a level
-        // we never had, which is normal and must be ignored rather than handing a
-        // bogus index back to the pool.
-        if(entry.volume == 0) {
-            if(found) removeEntry(existing.index, entry.price, isBid);
-            return;
-        }
-
-        int64_t index;
-        if(found) {
-            index = existing.index;
-        } else {
-            index = isBid ? freeIndexPoolBid.getIndex() : freeIndexPoolAsk.getIndex();
-            priceToIndexMap.addEntry(entry.price,index,isBid);
-        }
-
-        // Absolute quantity: assign, never accumulate.
-        auto& book = isBid ? bids : asks;
-        book[index].assignValues(entry.price, entry.volume);
-    }
-
-    private:
-    // Removes an entry from both index map and requeues it
-    // `price` must stay a double: taking it as int64_t truncated 86106.90 to 86106,
-    // so the map erase missed and the index went back to the pool while the map
-    // still pointed at it.
-    void removeEntry(int64_t index, double price,bool isBid) {
-        priceToIndexMap.removeEntry(price,isBid);
-        if(isBid){
-            freeIndexPoolBid.returnIndex(index);
-        } else {
-            freeIndexPoolAsk.returnIndex(index);
-        }
-    }
-
-    FetchError applySnapshot() {
-        AstraLib::Atomic::SpinlockGuard guard(updatingLock);
-        try {
-            Entry lastEntry(1,1);
-            while(lastEntry.price != 0) {
-                lastEntry = orderbookSnapshot.getBid();
-                if(lastEntry.price != 0) processEntry(lastEntry,true);
-            }
-            lastEntry.price = 1;
-            while(lastEntry.price != 0) {
-                lastEntry = orderbookSnapshot.getAsk();
-                if(lastEntry.price != 0) processEntry(lastEntry,false);
-            }
-            updateID = orderbookSnapshot.updateId;
-            return FetchError(APIError::SUCCESS);
-        } catch(std::exception& e) {
-            return FetchError(APIError::UNKNOWN,e.what());
-        }
-        
-    }
-
-    FetchError applyWebsocket(bool isFirst = true) {
-        AstraLib::Atomic::SpinlockGuard guard(updatingLock);
-        // first update
-        if(isFirst) {
-            try {
-                OrderbookArrays arrays= websocketStream.bufferOut.dequeue();
-                // Drop any outdated updates
-                if(arrays.u < updateID) {
-                    return APIError::RETRY;
-                }
-                // Apply the actual update
-                if(arrays.U  <= updateID&& arrays.u >= updateID + 1){
-                    updateID = arrays.u;
-                    std::array<Entry,8192>& bidArrayRef = *arrays.bidArray;
-                    std::array<Entry,8192>& askArrayRef = *arrays.askArray;
-                    for(int i = 0; i < arrays.bidCount; i++) {
-                        
-                        processEntry(bidArrayRef[i],true);
-                    }
-                    for(int i = 0; i < arrays.askCount; i++) {
-                        processEntry(askArrayRef[i],false);
-                    }
-                } else{
-                    return FetchError(APIError::RETRY);
-                }
-                return FetchError(APIError::SUCCESS);
-            } catch(std::exception& e) {
-                return FetchError(APIError::UNKNOWN,e.what());
-            }
-        } else {
-            try{
-                OrderbookArrays arrays = websocketStream.getLatestData();
-                if(arrays.pu == updateID){
-                    std::array<Entry,8192>& bidArrayRef = *arrays.bidArray;
-                    std::array<Entry,8192>& askArrayRef = *arrays.askArray;
-                    updateID = arrays.u;
-                    for(int i = 0; i < arrays.bidCount; i++) {
-                        processEntry(bidArrayRef[i],true);
-                    }
-                    for(int i = 0; i < arrays.askCount; i++) {
-                        processEntry(askArrayRef[i],false);
-                    }
-                    return FetchError(APIError::SUCCESS);
-                } else {
-                    return FetchError(APIError::ORDERBOOK_OUTDATED);
-                }
-            } catch(std::exception& e) {
-                return FetchError(APIError::UNKNOWN,e.what());
-            }
-        }
-        
-    }
-
-    void orderbookInitiate() {
+    // Fetches a fresh snapshot, retrying with a short pause, and applies it.
+    FetchError resync() {
+        synced.value.store(false,std::memory_order_release);
         FetchError error = futuresApi.fetchOrderbookSnapshot(pair,orderbookSnapshot);
-        if(error) {
+        for(int attempt = 1; error && attempt < snapshotAttempts; attempt++) {
+            if(!running.value.load(std::memory_order_acquire)) return error;
+            std::this_thread::sleep_for(std::chrono::milliseconds(250 * attempt));
             error = futuresApi.fetchOrderbookSnapshot(pair,orderbookSnapshot);
-            if(error) {
-                stop(std::move(error)); return;
+        }
+        if(error) return error;
+        applySnapshot();
+        return FetchError(APIError::SUCCESS);
+    }
+
+    // Applies one depth event. Returns false if a side ran out of room; the caller
+    // resyncs, which also drops levels that drifted in from beyond the snapshot depth.
+    bool applyUpdate(const OrderbookArrays& arrays) {
+        AstraLib::Atomic::SpinlockGuard guard(updatingLock);
+        for(int64_t i = 0; i < arrays.bidCount; i++) {
+            if(!processEntry((*arrays.bidArray)[i],true)) return false;
+        }
+        for(int64_t i = 0; i < arrays.askCount; i++) {
+            if(!processEntry((*arrays.askArray)[i],false)) return false;
+        }
+        updateID = arrays.u;
+        return true;
+    }
+
+    // Waits until a depth event is buffered. Never blocks shutdown: returns false once
+    // the book is stopping, or the stream has given up (recorded as the stop reason).
+    bool waitForUpdate() {
+        while(websocketStream.bufferOut.isEmpty()) {
+            if(!running.value.load(std::memory_order_acquire)) return false;
+            if(!websocketStream.isRunning()) {
+                FetchError* err = websocketStream.getStatus().second;
+                stop(FetchError(APIError::DISCONNECTED, err ? err->getErrorMsg() : std::string("Depth stream closed")));
+                return false;
             }
+            _mm_pause();
         }
-        FetchError status = applySnapshot();
-        if(status) {
-            stop(std::move(status)); return;
+        return true;
+    }
+
+    // Every event taken from the stream must be released once it has been looked at
+    bool nextUpdate(OrderbookArrays& out) {
+        if(!waitForUpdate()) return false;
+        out = websocketStream.getLatestData();
+        return true;
+    }
+
+    void release(OrderbookArrays& arrays) {
+        if(arrays.slot >= 0) arrayHolder->release(arrays.slot);
+        arrays.slot = -1;
+    }
+
+    // Binance's procedure: drop events the snapshot already covers (u < lastUpdateId),
+    // then the first applied event must straddle it (U <= lastUpdateId <= u).
+    // Returns false on a gap between snapshot and stream, a dropped event, or when stopping.
+    bool applyFirstUpdate() {
+        OrderbookArrays arrays;
+        while(nextUpdate(arrays)) {
+            if(arrays.dropped()) return false;
+            if(arrays.u < updateID) {
+                release(arrays);
+                continue;
+            }
+            bool applied = arrays.U <= updateID && applyUpdate(arrays);
+            release(arrays);
+            return applied;
         }
+        return false;
+    }
+
+    // The exchange info symbol is upper case; the stream name is lower case
+    FetchError loadTickSize() {
+        std::string symbol = pair;
+        for(char& c : symbol) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        PairInfo info{};
+        if(FetchError error = futuresApi.fetchExchangeInfoForPair(symbol,info)) return error;
+        if(info.tickSize <= 0) return FetchError(APIError::BAD_FIELD,"Exchange info has no tick size for " + symbol);
+        bidBook->setTickSize(info.tickSize);
+        askBook->setTickSize(info.tickSize);
+        return FetchError(APIError::SUCCESS);
     }
 
     void executionLoop() {
-        // This line eliminates the edge case of snapshot being ordered before the connection over the websocket is established.
-        websocketStream.bufferOut.dequeue(); 
-        FetchError error = futuresApi.fetchOrderbookSnapshot(pair,orderbookSnapshot);
-        if(error) {
-            error = futuresApi.fetchOrderbookSnapshot(pair,orderbookSnapshot);
-            if(error) {
+        if(FetchError error = loadTickSize()) {
+            stop(std::move(error)); return;
+        }
+        // Wait for the stream to deliver before taking the snapshot, so the snapshot
+        // cannot be older than the first buffered event.
+        if(!waitForUpdate()) return;
+        int failedSyncs = 0;
+        OrderbookArrays arrays;
+        while(running.value.load(std::memory_order_acquire)) {
+            if(FetchError error = resync()) {
                 stop(std::move(error)); return;
             }
-        }
-        FetchError status = applySnapshot();
-        if(status) {
-            stop(std::move(status)); return;
-        }
-        while(running.value.load(std::memory_order_acquire)) {
-            status = applyWebsocket();
-            while(status.error == APIError::RETRY) {
-                status = applyWebsocket();
-                if(status.error == APIError::ORDERBOOK_OUTDATED) {
-                    orderbookInitiate();
+            if(!applyFirstUpdate()) {
+                if(!running.value.load(std::memory_order_acquire)) return;
+                if(++failedSyncs == maxFailedSyncs) {
+                    stop(FetchError(APIError::ORDERBOOK_OUTDATED,std::string("Snapshot could not be aligned with the depth stream")));
+                    return;
                 }
-                if(status.error == APIError::UNKNOWN) {
-                    stop(std::move(status)); return;
-                }
+                continue;
             }
-            for(;;) {
-                status = applyWebsocket(false);
-                if(status) {
-                    if(status.error == APIError::ORDERBOOK_OUTDATED){
-                        break;
-                    } else {
-                        break;
-                    }
-                }
-            }
-            error = futuresApi.fetchOrderbookSnapshot(pair,orderbookSnapshot);
-            if(error) {
-                    error = futuresApi.fetchOrderbookSnapshot(pair,orderbookSnapshot);
-                if(error) {
-                }
-            }
-            status = applySnapshot();
-            if(status) {
+            failedSyncs = 0;
+            synced.value.store(true,std::memory_order_release);
+            // Each event must continue exactly where the previous one ended; any
+            // break (a dropped event, a reconnect) falls through to a resync.
+            while(nextUpdate(arrays)) {
+                bool applied = !arrays.dropped() && arrays.pu == updateID && applyUpdate(arrays);
+                release(arrays);
+                if(!applied) break;
             }
         }
-    }
-    
-    void getFullOrderbook() {
-        AstraLib::Atomic::SpinlockGuard guard(updatingLock);
-        
     }
 
     public:
-    Orderbook(APIManager& base_,std::string pair_,APIManager::Futures::API& api) : pair(pair_),
-    websocketStream(DecodeEntries,base_.hostFuturesWebsocket,"/stream?streams="+ pair_ +"@depth",base_.websocketParser),
-    futuresApi(api){
+    // The reason the book stopped, or nullptr while it is still running.
+    // stop() writes lastError before clearing running, so the acquire here makes it visible.
+    FetchError* error() {
+        if(running.value.load(std::memory_order_acquire)) return nullptr;
+        return lastError.get();
+    }
+
+    // True while the book is aligned with the stream. False before the first sync,
+    // during a resync and after a stop; the levels are not current then.
+    bool isSynced() {
+        return synced.value.load(std::memory_order_acquire);
+    }
+
+    // Copies up to out.size() levels into out, best first (highest bid, lowest ask).
+    // Returns how many were written. Prices are the exchange's own values.
+    size_t getTopBids(std::span<Entry> out) {
+        AstraLib::Atomic::SpinlockGuard guard(updatingLock);
+        return bidBook->top(out.data(), out.size());
+    }
+
+    size_t getTopAsks(std::span<Entry> out) {
+        AstraLib::Atomic::SpinlockGuard guard(updatingLock);
+        return askBook->top(out.data(), out.size());
+    }
+
+    // False when that side is empty.
+    bool getBestBid(Entry& out) {
+        return getTopBids(std::span<Entry>(&out, 1)) == 1;
+    }
+
+    bool getBestAsk(Entry& out) {
+        return getTopAsks(std::span<Entry>(&out, 1)) == 1;
+    }
+
+    // Looks a single price up directly in the sorted book.
+    PriceValid getEntryWithPrice(double price,Entry& out,bool isBid) {
+        AstraLib::Atomic::SpinlockGuard guard(updatingLock);
+        const bool found = isBid ? bidBook->find(price,out) : askBook->find(price,out);
+        return found ? PriceValid::VALID : PriceValid::NOT_VALID;
+    }
+
+    Orderbook(APIManager& base_,std::string pair_,APIManager::Futures::API& api) :
+    arrayHolder(std::make_unique<OrderbookArrayHolder>()),
+    websocketStream(DepthDecoder{arrayHolder.get()},base_.hostFuturesWebsocket,"/stream?streams="+ pair_ +"@depth",base_.websocketParser),
+    futuresApi(api), pair(pair_),
+    bidBook(std::make_unique<SortedBook<true>>()), askBook(std::make_unique<SortedBook<false>>()) {
         thread = std::thread(&Orderbook::executionLoop,this);
     };
     ~Orderbook() {

@@ -131,6 +131,12 @@ class WebsocketStreamHolder {
         return {ConnectionStatus::SUCCESS, nullptr};
     }
 
+    // Non-blocking, unlike getStatus(): false once the holder has stopped for good,
+    // either closed or out of reconnect attempts.
+    bool isRunning() {
+        return running.value.load(std::memory_order_acquire);
+    }
+
     bool closeConnection() {
         boost::system::error_code ec;
         if(connectionAlive.value.load(std::memory_order_acquire)) connectionAlive.value.store(false,std::memory_order_release);

@@ -76,7 +76,6 @@ These files have no internal includes and form the base of the dependency tree. 
 | `utils/crypto/hmacSha256.hpp`        | HMAC signing              |
 | `api/common/error/apiError.hpp`      | Base error enum           |
 | `api/common/enums/commonTypes.hpp`   | All domain enums          |
-| `api/orderbook/indexedBidAsk.hpp`    | Index/price struct        |
 | `model/entry.hpp`                    | Price/volume entry        |
 | `model/error.hpp`                    | Error model               |
 | `model/tradeEvent.hpp`               | Trade event model         |
@@ -98,7 +97,6 @@ graph LR
     BP(boostPrelude.hpp)
     AE(apiError.hpp)
     CT(commonTypes.hpp)
-    IBA(indexedBidAsk.hpp)
     EN(entry.hpp)
     TR(tradeEvent.hpp)
     MP(markPrice.hpp)
@@ -117,7 +115,7 @@ graph LR
     OSE[orderSentEvents.hpp]           --> CT
     OBA[orderbookArrays.hpp]           --> EN
     OBS[orderbookSnapshotIncoming.hpp] --> EN
-    TSI[threadSafeIndexMap.hpp]        --> IBA
+    TB[topBook.hpp]                    --> EN
     DE[decodeEntries.hpp]              --> EN
     DE                                 --> OBA
     MM[model.hpp]                      --> EN
@@ -134,10 +132,10 @@ graph LR
 | `api/common/factory/tradeEventFactory.hpp`     | Constructs TradeEvent from raw stream data   |
 | `api/common/factory/markPriceFactory.hpp`      | Constructs MarkPrice from raw stream data    |
 | `api/futures/order/orderSentEvents.hpp`        | Events emitted when an order is sent         |
-| `api/orderbook/orderbookArrays.hpp`            | Fixed-size bid/ask entry arrays              |
+| `api/orderbook/orderbookArrays.hpp`            | Depth event slots, decoder to orderbook      |
 | `api/orderbook/orderbookSnapshotIncoming.hpp`  | Incoming REST snapshot struct                |
-| `api/orderbook/threadSafeIndexMap.hpp`         | Lock-free price-to-index map                 |
-| `api/orderbook/decodeEntries.hpp`              | Decodes raw JSON entries into Entry structs  |
+| `api/orderbook/topBook.hpp`                    | Sorted book side: bitmap price blocks        |
+| `api/orderbook/decodeEntries.hpp`              | Decodes depth diffs into orderbook slots     |
 | `model/model.hpp`                              | Convenience header including all model files |
 
 ---
@@ -158,7 +156,6 @@ graph LR
     TE(toEnum.hpp)
     USE(userDataStreamEvents.hpp)
     ER(model/error.hpp)
-    TSI(threadSafeIndexMap.hpp)
 
     SH[streamHolder.hpp]               --> IB
     SH                                 --> RP
@@ -178,7 +175,6 @@ graph LR
     ORE[orderResponseEvents.hpp]       --> CT
     ORE                                --> TE
     ORE                                --> ER
-    TB[topBook.hpp]                    --> TSI
 ```
 
 | File                                        | Purpose                                                          |
@@ -189,7 +185,6 @@ graph LR
 | `manager/apiManager.hpp`                    | Central manager holding io_context and SSL context               |
 | `api/common/userData/userDataStream.hpp`    | Base user data stream with event routing                         |
 | `api/futures/order/orderResponseEvents.hpp` | Events received as order execution responses                     |
-| `api/orderbook/topBook.hpp`                 | Top-of-book best bid/ask tracker (stub)                          |
 
 ---
 
@@ -328,7 +323,7 @@ graph LR
     FE(fetchError.hpp)
     STR(streams.hpp)
     EN(entry.hpp)
-    TSI(threadSafeIndexMap.hpp)
+    TB(topBook.hpp)
     OBS(orderbookSnapshotIncoming.hpp)
     ER(error.hpp)
     OBA(orderbookArrays.hpp)
@@ -352,7 +347,7 @@ graph LR
     USS[userSpotStream.hpp]    --> UDS
     USS                        --> STR
     OB[orderbook.hpp]          --> EN
-    OB                         --> TSI
+    OB                         --> TB
     OB                         --> OBS
     OB                         --> ER
     OB                         --> OBA
@@ -369,7 +364,7 @@ graph LR
 | `api/futures/order/orderStream.hpp`      | Authenticated WebSocket stream for order placement and updates |
 | `api/user/streams/userFuturesStream.hpp` | Futures user data stream - account and order updates           |
 | `api/user/streams/userSpotStream.hpp`    | Spot user data stream - incomplete                             |
-| `api/orderbook/orderbook.hpp`            | Lock-free live orderbook with WebSocket feed and REST snapshot |
+| `api/orderbook/orderbook.hpp`            | Live orderbook: REST snapshot plus depth diffs, sorted sides   |
 
 ---
 

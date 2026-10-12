@@ -19,7 +19,7 @@
 | `api/futures/order/`| Order lifecycle: placement, tracking, response and sent events   |
 | `api/futures/streams/` | Futures market data streams (trades, mark price, aggregated) |
 | `api/spot/`         | Spot market API bindings                                         |
-| `api/orderbook/`    | Lock-free orderbook with top-of-book and snapshot support        |
+| `api/orderbook/`    | Order book: REST snapshot plus depth diffs, sorted bitmap sides  |
 | `api/user/`         | User data streams (account updates, order fills)                 |
 | `api/user/streams/` | Futures and spot user stream implementations                     |
 | `api/common/`       | Shared enums, error types, factories, and user data models       |

@@ -19,14 +19,11 @@ Pre-release, and not yet suitable for trading real money.
 and mark price streams, user data streams, WebSocket API order placement. The order book
 applies a snapshot, tracks the diff stream, and re-syncs after a dropped update; on an
 unrecoverable failure it stops and reports the reason through `error()` rather than taking
-the process down with it.
+the process down with it. Each side is kept sorted as bits over price ticks, so the best
+levels are read directly (`getTopBids`, `getBestAsk`, `getEntryWithPrice`).
 
 **Known broken** — the user data stream has no listen key keepalive, so Binance expires the
-key after 60 minutes. The spot surface is one endpoint deep. Inside the order book,
-`decodeEntries` releases its scratch buffer before handing back pointers into it, so a
-concurrent decode can overwrite an update mid-read; prices are also still `double` map keys
-rather than integer ticks. The sorted top-of-book in `topBook.hpp` is written but not wired
-in. `Notes.md` tracks the full list.
+key after 60 minutes. The spot surface is one endpoint deep. `Notes.md` tracks the full list.
 
 There is no CI and no automated test suite yet; `tests/` holds manual harnesses, one of which
 places a live order.
@@ -118,7 +115,7 @@ absent otherwise. Every parsing bug found so far was in a payload nobody had re-
 ## Testing
 
 `tests/` currently holds manual harnesses rather than an automated suite. `topBookTest` is
-self-contained; `apiTest` connects to the live exchange and **places a real order**, so read
+self-contained: it checks the sorted book against `std::map` under random updates; `apiTest` connects to the live exchange and **places a real order**, so read
 it before running it.
 
 Building the tests requires nothing beyond the normal build:
