@@ -15,18 +15,19 @@ built on [AstraLib](https://github.com/Datakan13/AstraLib) for its concurrency p
 
 Pre-release, and not yet suitable for trading real money.
 
-**Works** — REST market data (open interest, exchange info, klines, depth snapshot), trade
-and mark price streams, user data streams, WebSocket API order placement. The order book
+**Works** — REST market data (open interest and its history, exchange info, klines, depth
+snapshot), trade and mark price streams, user data streams, and WebSocket API order entry
+(place, modify, cancel, query, account balance). The order book
 applies a snapshot, tracks the diff stream, and re-syncs after a dropped update; on an
 unrecoverable failure it stops and reports the reason through `error()` rather than taking
 the process down with it. Each side is kept sorted as bits over price ticks, so the best
 levels are read directly (`getTopBids`, `getBestAsk`, `getEntryWithPrice`).
 
 **Known broken** — the user data stream has no listen key keepalive, so Binance expires the
-key after 60 minutes. The spot surface is one endpoint deep. `Notes.md` tracks the full list.
+key after 60 minutes. The spot surface is one endpoint deep.
 
-There is no CI and no automated test suite yet; `tests/` holds manual harnesses, one of which
-places a live order.
+There is no CI yet. `tests/` holds standalone test programs run by hand, one of which places a
+live order.
 
 ## Requirements
 
@@ -45,7 +46,8 @@ cmake -S . -B build
 cmake --build build
 ```
 
-AstraConnect is header-only. Add `src/` and `include/` to your include path and
+AstraConnect is header-only apart from simdjson. Add `src/` and `include/` to your include
+path, compile `include/simdjson/simdjson.cpp` into your target, link Boost and OpenSSL, and
 `#include <api/AstraConnect.hpp>`.
 
 Credentials are passed to `APIManager`; the library never reads them from the
@@ -65,13 +67,18 @@ REST market data and market streams need no keys. `Futures::OrderStream` needs b
 Everything hangs off a single `APIManager`, which owns the io_context, the TLS context and
 the shared parser.
 
-- **REST** — `Futures::API` (open interest, exchange info, klines, depth snapshot), `Spot::API` (klines)
+- **REST** — `Futures::API` (open interest and history, exchange info, klines, depth snapshot,
+  and `fetchRaw` for unwrapped endpoints), `Spot::API` (klines)
 - **Market streams** — `Futures::Streams::TradeEventStream`, `MarkPriceStream`
 - **User data** — `User::FuturesStream`
-- **Order entry** — `Futures::OrderStream`, over the WebSocket API with HMAC-SHA256 signing
+- **Order entry** — `Futures::OrderStream`, over the WebSocket API with HMAC-SHA256 signing:
+  place, modify, cancel and query orders, and fetch the account balance
 - **Order book** — `Orderbook`, maintained locally from a snapshot plus the diff stream
+- **Raw stream** — `AstraConnect::RawWebsocket`, a bare WebSocket connection with no parsing
+  and no reconnect, for streams the SDK doesn't wrap yet
 
-`AggregatedTradeEventStream` and `User::SpotStream` are declared but not implemented.
+`AggregatedTradeEventStream` is declared but empty, and `User::SpotStream` only fetches a
+listen key.
 
 ## Design Philosophy
 
@@ -93,6 +100,9 @@ Each of these is a deliberate tradeoff rather than an inherited default:
 - **One venue, no abstraction layer** — there is no generic `Exchange` interface, because
   the useful parts of Binance's API are the parts a generic interface would have to discard.
   Binance's field names appear as Binance's field names.
+- **Fixed-point prices** — prices and quantities are parsed straight from Binance's decimal
+  strings into `int64` at 1e-8 scale, so values are exact and the order book compares
+  integers rather than doubles.
 - **Header-only** — no build artefact to version against, at the cost of compile time.
 
 These are design intentions, not benchmark results. Nothing here has been measured against
@@ -115,14 +125,23 @@ absent otherwise. Every parsing bug found so far was in a payload nobody had re-
 
 ## Testing
 
-`tests/` currently holds manual harnesses rather than an automated suite. `topBookTest` is
-self-contained: it checks the sorted book against `std::map` under random updates; `apiTest` connects to the live exchange and **places a real order**, so read
-it before running it.
+Each test is its own executable, run by hand. Nothing runs them automatically yet.
 
-Building the tests requires nothing beyond the normal build:
+Offline:
+
+- `topBookTest` — checks the sorted book against `std::map` under random updates
+- `fixedPointTest` — decimal string ↔ fixed-point conversion, including on real simdjson fields
+- `ringBufferTryTest` — the non-blocking paths of the vendored AstraLib ring buffer
+
+Live (needs network access to Binance):
+
+- `rawWebsocketTest` — `RawWebsocket` and `fetchRaw`; no API key needed
+- `apiTest` — **places a real order**, so read it before running it
+
+The normal build builds all of them:
 
 ```
-cmake --build build --target apiTest topBookTest
+cmake --build build
 ```
 
 A proper test suite, sanitizer builds and CI are all still outstanding.
