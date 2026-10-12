@@ -2,9 +2,15 @@
 #include <chrono>
 #include <vector>
 #include <AstraLib/AstraLib.hpp>
-double setPrecision(double value, int decimals) {
-    double factor = std::pow(10.0, decimals);
-    return std::trunc(value * factor) / factor;
+using AstraConnect::Utils::Fixed;
+using AstraConnect::Utils::FIXED_SCALE;
+using AstraConnect::Utils::formatFixed;
+
+// Truncates a 1e-8 value to `decimals` decimals
+Fixed setPrecision(Fixed value, int decimals) {
+    Fixed step = FIXED_SCALE;
+    for(int i = 0; i < decimals; i++) step /= 10;
+    return value / step * step;
 }
 
 int main() {
@@ -29,13 +35,13 @@ int main() {
     timer.start();
     futuresAPI.fetchExchangeInfoForPair("ETHUSDT",info);
     timer.write();
-      std::cout << "minNotional: " << info.minNotional
-          << ", minPrice: " << info.minPrice
-          << ", maxPrice: " << info.maxPrice
-          << ", tickSize: " << info.tickSize
-          << ", minQuantity: " << info.minQuantity
-          << ", maxQuantity: " << info.maxQuantity
-          << ", stepSize: " << info.stepsize
+      std::cout << "minNotional: " << formatFixed(info.minNotional)
+          << ", minPrice: " << formatFixed(info.minPrice)
+          << ", maxPrice: " << formatFixed(info.maxPrice)
+          << ", tickSize: " << formatFixed(info.tickSize)
+          << ", minQuantity: " << formatFixed(info.minQuantity)
+          << ", maxQuantity: " << formatFixed(info.maxQuantity)
+          << ", stepSize: " << formatFixed(info.stepsize)
           << std::endl;
     timer.start();
     spotAPI.fetchCandles(vec,"ETHUSDT","5m");
@@ -86,14 +92,14 @@ int main() {
     timer.write("Dequeued a trade event from buffer");
 
     std::cout << "timestamp: " << event.timestamp
-          << ", price: " << event.price
-          << ", volume: " << event.volume
+          << ", price: " << formatFixed(event.price)
+          << ", volume: " << formatFixed(event.volume)
           << ", maker: " << std::boolalpha << event.maker
           << std::endl;
 
     std::cout << "timestamp: " << event2.timestamp
-          << ", price: " << event2.price
-          << ", volume: " << event2.volume
+          << ", price: " << formatFixed(event2.price)
+          << ", volume: " << formatFixed(event2.volume)
           << ", maker: " << std::boolalpha << event2.maker
           << std::endl;
 
@@ -110,14 +116,14 @@ int main() {
     timer.write("Dequeued a trade markPriceEvent from buffer");
 
     std::cout << "timestamp: " << markPriceEvent.timestamp
-          << ", index price: " << markPriceEvent.indexPrice
-          << ", mark price: " << markPriceEvent.markPrice
+          << ", index price: " << formatFixed(markPriceEvent.indexPrice)
+          << ", mark price: " << formatFixed(markPriceEvent.markPrice)
           << ", funding rate: " << std::boolalpha << markPriceEvent.fundingRate
           << std::endl;
 
     std::cout << "timestamp: " << markPriceEvent2.timestamp
-          << ", index price: " << markPriceEvent2.indexPrice
-          << ", mark price: " << markPriceEvent2.markPrice
+          << ", index price: " << formatFixed(markPriceEvent2.indexPrice)
+          << ", mark price: " << formatFixed(markPriceEvent2.markPrice)
           << ", funding rate: " << std::boolalpha << markPriceEvent2.fundingRate
           << std::endl;
 
@@ -128,7 +134,7 @@ int main() {
     std::string orderID;
 
     timer.start();
-    orderStream.sendNewOrder(PositionSide::LONG,OrderSide::BUY,TimeInForce::GTC,OrderType::LIMIT,"ETHUSDT",setPrecision(markPriceEvent.markPrice,1),0.2,orderID);
+    orderStream.sendNewOrder(PositionSide::LONG,OrderSide::BUY,TimeInForce::GTC,OrderType::LIMIT,"ETHUSDT",setPrecision(markPriceEvent.markPrice,1),2 * FIXED_SCALE / 10,orderID);
     timer.write("Took time for this order");
 
     int64_t orderId = orderStream.getLastOrderId();
@@ -136,7 +142,7 @@ int main() {
     std::string orderIdStr = std::to_string(orderId);
 
     timer.start();
-    orderStream.sendModifyOrder(PositionSide::LONG,OrderSide::SELL,PriceMatchMode::NONE,OrderType::MARKET,"ETHUSDT",10000.23,0.1,orderIdStr,orderID);
+    orderStream.sendModifyOrder(PositionSide::LONG,OrderSide::SELL,PriceMatchMode::NONE,OrderType::MARKET,"ETHUSDT",1000023 * FIXED_SCALE / 100,FIXED_SCALE / 10,orderIdStr,orderID);
     timer.write();
 
     timer.start();
@@ -156,9 +162,9 @@ int main() {
     AccountInfoLite accountInfoHere;
      orderStream.getAccountInfo(accountInfoId,accountInfoHere);
     std::cout << "asset: " << accountInfoHere.asset
-          << ", balance: " << accountInfoHere.balance
-          << ", crossWalletBalance: " << accountInfoHere.crossWalletBalance
-          << ", availableBalance: " << accountInfoHere.availableBalance
+          << ", balance: " << formatFixed(accountInfoHere.balance)
+          << ", crossWalletBalance: " << formatFixed(accountInfoHere.crossWalletBalance)
+          << ", availableBalance: " << formatFixed(accountInfoHere.availableBalance)
           << ", updateTime: " << accountInfoHere.updateTime
           << std::endl;
      std::this_thread::sleep_for(std::chrono::hours(3));

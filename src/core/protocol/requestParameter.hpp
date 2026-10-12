@@ -77,7 +77,7 @@ std::string makeRequestFromRequestParameters(Args&&... requestParameters) {
         
 }
 
-void addParameterToRequest(std::string& request,RequestParameter<std::string>& param) {
+inline void addParameterToRequest(std::string& request,RequestParameter<std::string>& param) {
     if (request.empty() || !(request.back() == '}')) return;
     request.pop_back();
     request += std::string(", ") +"\"" + param.requestField + "\": " + param.request + "}"; 

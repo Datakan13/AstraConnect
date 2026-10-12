@@ -24,3 +24,6 @@
 
 // Orderbook
 #include "api/orderbook/orderbook.hpp"
+
+// Raw stream connection (no parsing, no reconnect)
+#include "api/raw/rawWebsocket.hpp"

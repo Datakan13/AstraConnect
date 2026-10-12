@@ -1,4 +1,5 @@
 #pragma once
+#include "utils/decimal/fixedPoint.hpp"
 #include <memory>
 #include <simdjson/simdjson.h>
 #include "api/common/enums/commonTypes.hpp"
@@ -20,9 +21,9 @@ class AccountUpdate {
         AssetBalance asset;
         for(auto field : balanceArray) {
             field["a"].get_string(asset.asset);
-            asset.walletBalance = field["wb"].get_double_in_string().value();
-            asset.crossWalletBalance = field["cw"].get_double_in_string().value();
-            asset.balanceChange = field["bc"].get_double_in_string().value();
+            asset.walletBalance = AstraConnect::Utils::readFixed(field["wb"]);
+            asset.crossWalletBalance = AstraConnect::Utils::readFixed(field["cw"]);
+            asset.balanceChange = AstraConnect::Utils::readFixed(field["bc"]);
             assets.push_back(asset);
         }
         // "P" is omitted when FUNDING FEE lands on a crossed position: the docs say
@@ -35,13 +36,13 @@ class AccountUpdate {
         std::string positionSide;
         for(auto field : positionArray) {
             field["s"].get_string(position.pair);
-            position.positionAmount = field["pa"].get_double_in_string().value();
-            position.entryPrice = field["ep"].get_double_in_string().value();
-            position.breakEvenPrice = field["bep"].get_double_in_string().value();
-            position.unrealizedPNL = field["up"].get_double_in_string().value();
+            position.positionAmount = AstraConnect::Utils::readFixed(field["pa"]);
+            position.entryPrice = AstraConnect::Utils::readFixed(field["ep"]);
+            position.breakEvenPrice = AstraConnect::Utils::readFixed(field["bep"]);
+            position.unrealizedPNL = AstraConnect::Utils::readFixed(field["up"]);
             field["mt"].get_string(marginType);
             position.marginType = returnMarginType(marginType);
-            position.isolatedWalletBalance = field["iw"].get_double_in_string().value();
+            position.isolatedWalletBalance = AstraConnect::Utils::readFixed(field["iw"]);
             field["ps"].get_string(positionSide);
             position.positionSide = returnPositionSide(positionSide);
             positions.push_back(position);
@@ -56,11 +57,11 @@ class AccountUpdate {
 // Wire format: doc/payloads/streams/user-margin-call.md
 class MarginCall {
     public:
-    double crossWalletBalance;
+    AstraConnect::Utils::Fixed crossWalletBalance;
     std::vector<MarginCallPosition> positions;
 
     void parseFields(simdjson::ondemand::document& doc) {
-        crossWalletBalance = doc["cw"].get_double_in_string().value();
+        crossWalletBalance = AstraConnect::Utils::readFixed(doc["cw"]);
         MarginCallPosition position;
         std::string positionSide;
         std::string margintype;
@@ -69,13 +70,13 @@ class MarginCall {
             field["s"].get_string(position.pair);
             field["ps"].get_string(positionSide);
             position.positionSide = returnPositionSide(positionSide);
-            position.positionAmount = field["pa"].get_double_in_string().value();
+            position.positionAmount = AstraConnect::Utils::readFixed(field["pa"]);
             field["mt"].get_string(margintype);
             position.marginType = returnMarginType(margintype);
-            position.isolatedWalletBalance = field["iw"].get_double_in_string().value();
-            position.markPrice = field["mp"].get_double_in_string().value();
-            position.unrealizedPNL = field["up"].get_double_in_string().value();
-            position.maintenanceMargin = field["mm"].get_double_in_string().value();
+            position.isolatedWalletBalance = AstraConnect::Utils::readFixed(field["iw"]);
+            position.markPrice = AstraConnect::Utils::readFixed(field["mp"]);
+            position.unrealizedPNL = AstraConnect::Utils::readFixed(field["up"]);
+            position.maintenanceMargin = AstraConnect::Utils::readFixed(field["mm"]);
             positions.push_back(position);
         }
     }
@@ -88,19 +89,19 @@ class OrderUpdate {
     public:
     std::string pair;
     std::string clientID;
-    double originalQuantity;
-    double originalPrice;   // price requested on limit orders 0 for market
-    double averagePrice;        // average price of executed fills 
-    double stopPrice;
+    AstraConnect::Utils::Fixed originalQuantity;
+    AstraConnect::Utils::Fixed originalPrice;   // price requested on limit orders 0 for market
+    AstraConnect::Utils::Fixed averagePrice;        // average price of executed fills 
+    AstraConnect::Utils::Fixed stopPrice;
     int64_t orderID;
-    double lastFilledQuantity;
-    double totalFilledQuantity;
-    double lastFilledPrice;
+    AstraConnect::Utils::Fixed lastFilledQuantity;
+    AstraConnect::Utils::Fixed totalFilledQuantity;
+    AstraConnect::Utils::Fixed lastFilledPrice;
     std::string commisionAsset;
-    double commision;
+    AstraConnect::Utils::Fixed commision;
     int64_t tradeTimestamp;
-    double notitionalValueOfOrderB;
-    double notitionalValueOfOrderA;
+    AstraConnect::Utils::Fixed notitionalValueOfOrderB;
+    AstraConnect::Utils::Fixed notitionalValueOfOrderA;
     bool maker;
     bool reduceOnly;
     OrderSide side;
@@ -115,10 +116,10 @@ class OrderUpdate {
     PriceMatchMode priceMatchMode;
     ExpireReason expireReason;
     bool closeAll;
-    double activationPrice = 0;
+    AstraConnect::Utils::Fixed activationPrice = 0;
     double callBackRate = 0;
     bool priceProtection;
-    double realizedProfit;
+    AstraConnect::Utils::Fixed realizedProfit;
     int64_t GTDExprationTimestamp;
 
     void parseFields(simdjson::ondemand::document& doc) {
@@ -132,23 +133,23 @@ class OrderUpdate {
         orderType = returnOrderType(intermediateString);
         obj["f"].get_string(intermediateString);
         timeInForce = returnTimeInForce(intermediateString);
-        originalQuantity = obj["q"].get_double_in_string().value();
-        originalPrice = obj["p"].get_double_in_string().value();
-        averagePrice = obj["ap"].get_double_in_string().value();
-        stopPrice = obj["sp"].get_double_in_string().value();
+        originalQuantity = AstraConnect::Utils::readFixed(obj["q"]);
+        originalPrice = AstraConnect::Utils::readFixed(obj["p"]);
+        averagePrice = AstraConnect::Utils::readFixed(obj["ap"]);
+        stopPrice = AstraConnect::Utils::readFixed(obj["sp"]);
         obj["x"].get_string(intermediateString);
         executionType = returnExecutionType(intermediateString);
         obj["X"].get_string(intermediateString);
         orderStatus = returnOrderStatus(intermediateString);
         orderID = obj["i"].get_int64().value();
-        lastFilledQuantity = obj["l"].get_double_in_string().value();
-        totalFilledQuantity = obj["z"].get_double_in_string().value();
-        lastFilledPrice = obj["L"].get_double_in_string().value();
+        lastFilledQuantity = AstraConnect::Utils::readFixed(obj["l"]);
+        totalFilledQuantity = AstraConnect::Utils::readFixed(obj["z"]);
+        lastFilledPrice = AstraConnect::Utils::readFixed(obj["L"]);
         obj["N"].get_string(commisionAsset);
-        commision = obj["n"].get_double_in_string().value();
+        commision = AstraConnect::Utils::readFixed(obj["n"]);
         tradeTimestamp = obj["T"].get_int64().value();
-        notitionalValueOfOrderB = obj["b"].get_double_in_string().value();
-        notitionalValueOfOrderA = obj["a"].get_double_in_string().value();
+        notitionalValueOfOrderB = AstraConnect::Utils::readFixed(obj["b"]);
+        notitionalValueOfOrderA = AstraConnect::Utils::readFixed(obj["a"]);
         maker = obj["m"].get_bool().value();
         reduceOnly = obj["R"].get_bool().value();
         obj["wt"].get_string(intermediateString);
@@ -159,11 +160,11 @@ class OrderUpdate {
         positionSide = returnPositionSide(intermediateString);
         closeAll = obj["cp"].get_bool().value();
         if(orderType == OrderType::TRAILING_STOP_MARKET) {
-            activationPrice = obj["AP"].get_double_in_string().value();
+            activationPrice = AstraConnect::Utils::readFixed(obj["AP"]);
             callBackRate = obj["cr"].get_double_in_string().value();
         }
         priceProtection = obj["pP"].get_bool().value();
-        realizedProfit = obj["rp"].get_double_in_string().value();
+        realizedProfit = AstraConnect::Utils::readFixed(obj["rp"]);
         obj["V"].get_string(intermediateString);
         stpMode = returnSTPMode(intermediateString);
         obj["pm"].get_string(intermediateString);
@@ -183,12 +184,12 @@ class TradeLite {
     int64_t tradeTimestamp;
     std::string clientID;
     std::string pair;
-    double originalQuantity;
-    double originalPrice;
+    AstraConnect::Utils::Fixed originalQuantity;
+    AstraConnect::Utils::Fixed originalPrice;
     bool maker;
     OrderSide orderSide;
-    double lastFilledPrice;
-    double lastFilledQuantity;
+    AstraConnect::Utils::Fixed lastFilledPrice;
+    AstraConnect::Utils::Fixed lastFilledQuantity;
     int64_t tradeID;
     int64_t orderID;
 
@@ -196,14 +197,14 @@ class TradeLite {
         std::string intermediateString;
         tradeTimestamp = doc["T"].get_int64().value();
         doc["s"].get_string(pair);
-        originalQuantity = doc["q"].get_double_in_string().value();
-        originalPrice = doc["p"].get_double_in_string().value();
+        originalQuantity = AstraConnect::Utils::readFixed(doc["q"]);
+        originalPrice = AstraConnect::Utils::readFixed(doc["p"]);
         maker = doc["m"].get_bool().value();
         doc["c"].get_string(clientID);
         doc["S"].get_string(intermediateString);
         orderSide = returnOrderSide(intermediateString);
-        lastFilledPrice = doc["L"].get_double_in_string().value();
-        lastFilledQuantity = doc["l"].get_double_in_string().value();
+        lastFilledPrice = AstraConnect::Utils::readFixed(doc["L"]);
+        lastFilledQuantity = AstraConnect::Utils::readFixed(doc["l"]);
         tradeID = doc["t"].get_int64().value();
         orderID = doc["i"].get_int64().value();
     }
@@ -274,11 +275,11 @@ class GridUpdate {
     StrategyType strategyType;
     StrategyStatus strategyStatus;
     std::string pair;
-    double realizedPNL;
-    double unmatchedAveragePrice;
-    double unmatchedQuantity;
-    double unmatchedFee;
-    double matchedPNL;
+    AstraConnect::Utils::Fixed realizedPNL;
+    AstraConnect::Utils::Fixed unmatchedAveragePrice;
+    AstraConnect::Utils::Fixed unmatchedQuantity;
+    AstraConnect::Utils::Fixed unmatchedFee;
+    AstraConnect::Utils::Fixed matchedPNL;
     int64_t updateTimestamp;
 
     void parseFields(simdjson::ondemand::document& doc) {
@@ -291,11 +292,11 @@ class GridUpdate {
         obj["ss"].get_string(intermediateString);
         strategyStatus = returnStrategyStatus(intermediateString);
         obj["s"].get_string(pair);
-        realizedPNL = obj["r"].get_double_in_string().value();
-        unmatchedAveragePrice = obj["up"].get_double_in_string().value();
-        unmatchedQuantity = obj["uq"].get_double_in_string().value();
-        unmatchedFee = obj["uf"].get_double_in_string().value();
-        matchedPNL = obj["mp"].get_double_in_string().value();
+        realizedPNL = AstraConnect::Utils::readFixed(obj["r"]);
+        unmatchedAveragePrice = AstraConnect::Utils::readFixed(obj["up"]);
+        unmatchedQuantity = AstraConnect::Utils::readFixed(obj["uq"]);
+        unmatchedFee = AstraConnect::Utils::readFixed(obj["uf"]);
+        matchedPNL = AstraConnect::Utils::readFixed(obj["mp"]);
         updateTimestamp = obj["ut"].get_int64().value();
     }
 

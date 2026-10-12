@@ -59,12 +59,15 @@ class APIManager {
     }
 
     // Market data only; constructing an order or user data stream will throw
+    // The trust store is loaded once here, before any connection can share ctx
     APIManager() :
      ctx(boost::asio::ssl::context::tls_client) {
+        ctx.set_default_verify_paths();
     };
 
     explicit APIManager(Credentials credentials_) :
      credentials(std::move(credentials_)), ctx(boost::asio::ssl::context::tls_client) {
+        ctx.set_default_verify_paths();
     };
 
 

@@ -44,7 +44,7 @@ class FetchError {
 
 };
 
-FetchError getErrorFromSimdjson(simdjson::ondemand::object& obj) noexcept {
+inline FetchError getErrorFromSimdjson(simdjson::ondemand::object& obj) noexcept {
     std::string msg;
     if (auto err = obj["msg"].get_string(msg)) {
         // Missing "msg" field, or invalid type
@@ -81,4 +81,26 @@ inline FetchError iterateResponse(simdjson::ondemand::parser& parser, simdjson::
         return FetchError(APIError::BAD_FIELD,std::string("Failed to parse response. error: ") + simdjson::error_message(ec));
     }
     return getErrorFromDocument(doc);
+}
+
+// Maps an HTTP status without a Binance error body (an HTML 5xx page, a bare 418)
+// onto the closest APIError.
+inline APIError fromHttpStatus(int httpStatus) noexcept {
+    switch(httpStatus) {
+        case 418:                   // IP auto-banned after ignoring 429s
+        case 429: return APIError::TOO_MANY_REQUESTS;
+        case 401:
+        case 403: return APIError::UNAUTHORIZED;
+        case 503: return APIError::SERVER_BUSY;
+        default:  return APIError::UNEXPECTED_RESP;
+    }
+}
+
+// As above, and also fails a non-2xx response. A Binance {"code","msg"} body wins
+// because it says more; otherwise the status alone is reported.
+inline FetchError iterateResponse(simdjson::ondemand::parser& parser, simdjson::padded_string& body, simdjson::ondemand::document& doc, int httpStatus) noexcept {
+    FetchError err = iterateResponse(parser,body,doc);
+    const bool httpFailed = httpStatus != 0 && httpStatus / 100 != 2;
+    if(!httpFailed || (err && err.error != APIError::BAD_FIELD)) return err;
+    return FetchError(fromHttpStatus(httpStatus),"HTTP " + std::to_string(httpStatus));
 }

@@ -1,4 +1,5 @@
 #pragma once
+#include "utils/decimal/fixedPoint.hpp"
 #include <string>
 // commonTypes.hpp
 //
@@ -195,20 +196,20 @@ enum class EventType {
 class AssetBalance {
     public:
     std::string asset;
-    double walletBalance;
-    double crossWalletBalance;
-    double balanceChange;
+    AstraConnect::Utils::Fixed walletBalance;
+    AstraConnect::Utils::Fixed crossWalletBalance;
+    AstraConnect::Utils::Fixed balanceChange;
 };
 
 class PositionBalance {
     public:
     std::string pair;
-    double positionAmount;
-    double entryPrice;
-    double breakEvenPrice;
-    double realizedPNL;
-    double unrealizedPNL;
-    double isolatedWalletBalance;
+    AstraConnect::Utils::Fixed positionAmount;
+    AstraConnect::Utils::Fixed entryPrice;
+    AstraConnect::Utils::Fixed breakEvenPrice;
+    AstraConnect::Utils::Fixed realizedPNL;
+    AstraConnect::Utils::Fixed unrealizedPNL;
+    AstraConnect::Utils::Fixed isolatedWalletBalance;
     MarginType marginType;
     PositionSide positionSide;
 };
@@ -217,10 +218,10 @@ class MarginCallPosition {
     public:
     std::string pair;
     PositionSide positionSide;
-    double positionAmount;
+    AstraConnect::Utils::Fixed positionAmount;
     MarginType marginType;
-    double isolatedWalletBalance;
-    double markPrice;
-    double unrealizedPNL;
-    double maintenanceMargin;
+    AstraConnect::Utils::Fixed isolatedWalletBalance;
+    AstraConnect::Utils::Fixed markPrice;
+    AstraConnect::Utils::Fixed unrealizedPNL;
+    AstraConnect::Utils::Fixed maintenanceMargin;
 };

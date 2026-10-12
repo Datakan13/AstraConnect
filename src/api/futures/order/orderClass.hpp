@@ -1,4 +1,5 @@
 #pragma once
+#include "utils/decimal/fixedPoint.hpp"
 #include <memory>
 #include "api/common/enums/commonTypes.hpp"
 #include "orderResponseEvents.hpp"
@@ -48,19 +49,19 @@ class Order {
         return {};
     }
 
-    double getPrice() {
+    AstraConnect::Utils::Fixed getPrice() {
         if(wrapper) return wrapper->getPrice(type);
-        return 0.0;
+        return 0;
     }
 
-    double getOrigQty() {
+    AstraConnect::Utils::Fixed getOrigQty() {
         if(wrapper) return wrapper->getOrigQty(type);
-        return 0.0;
+        return 0;
     }
 
-    double getExecutedQty() {
+    AstraConnect::Utils::Fixed getExecutedQty() {
         if(wrapper) return wrapper->getExecutedQty(type);
-        return 0.0;
+        return 0;
     }
 
     OrderStatus getOrderStatus() {
@@ -83,9 +84,9 @@ class Order {
         return PositionSide::NONE;
     }
 
-    double getAvgPrice() { return wrapper ? wrapper->getAvgPrice(type) : 0.0; }
-    double getCumQty() { return wrapper ? wrapper->getCumQty(type) : 0.0; }
-    double getCumQuote() { return wrapper ? wrapper->getCumQuote(type) : 0.0; }
+    AstraConnect::Utils::Fixed getAvgPrice() { return wrapper ? wrapper->getAvgPrice(type) : 0; }
+    AstraConnect::Utils::Fixed getCumQty() { return wrapper ? wrapper->getCumQty(type) : 0; }
+    AstraConnect::Utils::Fixed getCumQuote() { return wrapper ? wrapper->getCumQuote(type) : 0; }
     bool getReduceOnly() { return wrapper ? wrapper->getReduceOnly(type) : false; }
     bool getClosePosition() { return wrapper ? wrapper->getClosePosition(type) : false; }
     WorkingType getWorkingType() { return wrapper ? wrapper->getWorkingType(type) : WorkingType::NONE; }
@@ -106,8 +107,8 @@ class Order {
                   TimeInForce tif,
                   OrderType orderType,
                   const std::string& pair,
-                  const double& px,
-                  const double& qty) : sent(timestamp_,px,qty,pair,tif,orderSide,posSide,orderType){
+                  const AstraConnect::Utils::Fixed& px,
+                  const AstraConnect::Utils::Fixed& qty) : sent(timestamp_,px,qty,pair,tif,orderSide,posSide,orderType){
                     lock.unlock();
     }
 

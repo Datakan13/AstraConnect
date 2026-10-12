@@ -10,6 +10,7 @@
 #include "model/exchangeInfo.hpp"
 #include "model/openInterest.hpp"
 #include "model/candle.hpp"
+#include "utils/decimal/fixedPoint.hpp"
 
 #include "api/orderbook/orderbookSnapshotIncoming.hpp"
 
@@ -28,7 +29,7 @@ class APIManager::Futures::API{
 
             ThreadSafeParserRAII parser(parserFutures);
             simdjson::ondemand::document candleArray;
-            if(FetchError err = iterateResponse(parser.parser,data.string,candleArray)) return err;
+            if(FetchError err = iterateResponse(parser.parser,data.string,candleArray,data.httpStatus)) return err;
             int index = 0;
             Candle outCandle;
             try {
@@ -41,25 +42,25 @@ class APIManager::Futures::API{
                             outCandle.timestampOpen = field.value().get_int64().value();
                             break;
                         case 1:
-                            outCandle.open = field.value().get_double_in_string().value();
+                            outCandle.open = AstraConnect::Utils::readFixed(field.value());
                             break;
                         case 2:
-                            outCandle.high = field.value().get_double_in_string().value();
+                            outCandle.high = AstraConnect::Utils::readFixed(field.value());
                             break;
                         case 3:
-                            outCandle.low = field.value().get_double_in_string().value();
+                            outCandle.low = AstraConnect::Utils::readFixed(field.value());
                             break;
                         case 4:
-                            outCandle.close = field.value().get_double_in_string().value();
+                            outCandle.close = AstraConnect::Utils::readFixed(field.value());
                             break;
                         case 5:
-                            outCandle.volume = field.value().get_double_in_string().value();
+                            outCandle.volume = AstraConnect::Utils::readFixed128(field.value());
                             break;
                         case 6:
                             outCandle.timestampClose = field.value().get_int64().value();
                             break;
                         case 7:
-                            outCandle.quoteVolume = field.value().get_double_in_string().value();
+                            outCandle.quoteVolume = AstraConnect::Utils::readFixed128(field.value());
                             break;
                         default:
                             break;
@@ -88,13 +89,13 @@ class APIManager::Futures::API{
 
             ThreadSafeParserRAII parser(parserFutures);
             simdjson::ondemand::document interestArray;
-            if(FetchError err = iterateResponse(parser.parser,data.string,interestArray)) return err;
+            if(FetchError err = iterateResponse(parser.parser,data.string,interestArray,data.httpStatus)) return err;
             try {
                 OpenInterest interestFrameHolder;
                 for(auto interestFrame : interestArray) {
-                    interestFrameHolder.totalInterest = interestFrame["sumOpenInterest"].get_double_in_string().value();
-                    interestFrameHolder.totalInterestValue = interestFrame["sumOpenInterestValue"].get_double_in_string().value();
-                    interestFrameHolder.circulation = interestFrame["CMCCirculatingSupply"].get_double_in_string().value();
+                    interestFrameHolder.totalInterest = AstraConnect::Utils::readFixed128(interestFrame["sumOpenInterest"]);
+                    interestFrameHolder.totalInterestValue = AstraConnect::Utils::readFixed128(interestFrame["sumOpenInterestValue"]);
+                    interestFrameHolder.circulation = AstraConnect::Utils::readFixed128(interestFrame["CMCCirculatingSupply"]);
                     interestFrameHolder.timestamp = interestFrame["timestamp"].get_int64().value();
                     outputBuff.enqueue(interestFrameHolder);
                 }
@@ -115,10 +116,10 @@ class APIManager::Futures::API{
 
             ThreadSafeParserRAII parser(parserFutures);
             simdjson::ondemand::document interestCurrent;
-            if(FetchError err = iterateResponse(parser.parser,data.string,interestCurrent)) return err;
+            if(FetchError err = iterateResponse(parser.parser,data.string,interestCurrent,data.httpStatus)) return err;
             
             try {
-                ref.openInterest = interestCurrent.find_field("openInterest").value().get_double_in_string().value();
+                ref.openInterest = AstraConnect::Utils::readFixed128(interestCurrent.find_field("openInterest"));
                 ref.timestamp = interestCurrent.find_field("time").value().get_int64().value();
             } catch(std::exception& e) {
                 return FetchError(APIError::BAD_FIELD,std::string("Failed to parse a field. error: " + std::string(e.what())));
@@ -135,7 +136,7 @@ class APIManager::Futures::API{
             if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());
             ThreadSafeParserRAII parser(parserFutures);
             simdjson::ondemand::document doc;
-            if(FetchError err = iterateResponse(parser.parser,data.string,doc)) return err;
+            if(FetchError err = iterateResponse(parser.parser,data.string,doc,data.httpStatus)) return err;
             std::string pair_;
             std::string field_;
             try {
@@ -146,17 +147,17 @@ class APIManager::Futures::API{
                         for(auto field : obj["filters"]) {
                             field["filterType"].get_string(field_);
                             if(field_ == "PRICE_FILTER") {
-                                out.maxPrice = field["maxPrice"].get_double_in_string().value();
-                                out.minPrice = field["minPrice"].get_double_in_string().value();
-                                out.tickSize = field["tickSize"].get_double_in_string().value();
+                                out.maxPrice = AstraConnect::Utils::readFixed(field["maxPrice"]);
+                                out.minPrice = AstraConnect::Utils::readFixed(field["minPrice"]);
+                                out.tickSize = AstraConnect::Utils::readFixed(field["tickSize"]);
                             }
                             if(field_ == "LOT_SIZE") {
-                                out.maxQuantity = field["maxQty"].get_double_in_string().value();
-                                out.minQuantity = field["minQty"].get_double_in_string().value();
-                                out.stepsize = field["stepSize"].get_double_in_string().value();
+                                out.maxQuantity = AstraConnect::Utils::readFixed(field["maxQty"]);
+                                out.minQuantity = AstraConnect::Utils::readFixed(field["minQty"]);
+                                out.stepsize = AstraConnect::Utils::readFixed(field["stepSize"]);
                             }
                             if(field_ == "MIN_NOTIONAL") {
-                                out.minNotional = field["notional"].get_double_in_string().value();
+                                out.minNotional = AstraConnect::Utils::readFixed(field["notional"]);
                             }
                         }
                         return FetchError(APIError::SUCCESS);
@@ -177,31 +178,31 @@ class APIManager::Futures::API{
             if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());
             ThreadSafeParserRAII parser(parserFutures);
             simdjson::ondemand::document doc;
-            if(FetchError err = iterateResponse(parser.parser,data.string,doc)) return err;
+            if(FetchError err = iterateResponse(parser.parser,data.string,doc,data.httpStatus)) return err;
             try {
                 out.updateId = doc["lastUpdateId"].get_int64();
                 for(auto bid : doc["bids"]){
                     auto ary = bid.value().get_array();
-                    double price = 0;
-                    double volume;
+                    AstraConnect::Utils::Fixed price = 0;
+                    AstraConnect::Utils::Fixed volume;
                     for(auto val : ary){
                         if(price != 0){
-                            volume = val.value().get_double_in_string().value();
+                            volume = AstraConnect::Utils::readFixed(val.value());
                         } else {
-                            price = val.value().get_double_in_string().value();
+                            price = AstraConnect::Utils::readFixed(val.value());
                         }
                     }
                     out.registerEntry(price,volume,true);
                 }
                 for(auto ask :  doc["asks"]){
                     auto ary = ask.value().get_array();
-                    double price = 0;
-                    double volume;
+                    AstraConnect::Utils::Fixed price = 0;
+                    AstraConnect::Utils::Fixed volume;
                     for(auto val : ary){
                         if(price != 0){
-                            volume = val.value().get_double_in_string().value();
+                            volume = AstraConnect::Utils::readFixed(val.value());
                         } else {
-                            price = val.value().get_double_in_string().value();
+                            price = AstraConnect::Utils::readFixed(val.value());
                         }
                     }
                     out.registerEntry(price,volume,false);
@@ -211,6 +212,18 @@ class APIManager::Futures::API{
                 out.reset();
                 return FetchError(APIError::BAD_FIELD,std::string{"Failed to parse a field. error: " + std::string(e.what())});
             }
+            return FetchError(APIError::SUCCESS);
+        }
+
+        // Raw GET on fapi.binance.com, e.g. "/fapi/v1/time" or "/fapi/v1/exchangeInfo".
+        // SUCCESS for any HTTP response, including 4xx/5xx: body and httpStatus are
+        // filled and the caller judges them. BOOST_ERROR (with message) only when no
+        // response could be obtained, after one reconnect and retry.
+        FetchError fetchRaw(const std::string& target, std::string& body, int& httpStatus) {
+            StreamData data = futures.sendRequest(target);
+            if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());
+            body.assign(data.string.data(), data.string.size());
+            httpStatus = data.httpStatus;
             return FetchError(APIError::SUCCESS);
         }
 

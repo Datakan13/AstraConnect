@@ -1,6 +1,9 @@
 #pragma once
+#include <array>
 #include <atomic>
-#include <immintrin.h>
+#include <cstddef>
+#include <cstdint>
+#include <AstraLib/Atomic/cpuRelax.hpp>
 #include <memory>
 #include <AstraLib/Atomic/paddedAtomic.hpp>
 #include <type_traits>
@@ -40,7 +43,7 @@ class AtomicRingBuffer {
         uint64_t ticket = writeTicket.value.fetch_add(1,std::memory_order_acq_rel);
         int index = ticket & (SIZE - 1); 
         while(buffer[index].seq.load(std::memory_order_acquire) != ticket) {
-            _mm_pause();
+            AstraLib::Atomic::cpuRelax();
         }
         buffer[index].data = std::move(data);
         buffer[index].seq.store(ticket+1,std::memory_order_release);
@@ -50,7 +53,7 @@ class AtomicRingBuffer {
         uint64_t ticket = writeTicket.value.fetch_add(1,std::memory_order_acq_rel);
         int index = ticket & (SIZE - 1); 
         while(buffer[index].seq.load(std::memory_order_acquire) != ticket) {
-            _mm_pause();
+            AstraLib::Atomic::cpuRelax();
         }
         buffer[index].data = data;
         buffer[index].seq.store(ticket+1,std::memory_order_release);
@@ -60,7 +63,7 @@ class AtomicRingBuffer {
         uint64_t ticket = readTicket.value.fetch_add(1,std::memory_order_acq_rel);
         int index = ticket & (SIZE - 1);
         while(buffer[index].seq.load(std::memory_order_acquire) != ticket + 1) {
-            _mm_pause();
+            AstraLib::Atomic::cpuRelax();
         }
         A data = std::move(buffer[index].data);
         // SIZE is capacity thus +SIZE for the next iteration
@@ -81,7 +84,7 @@ class AtomicRingBuffer {
         uint64_t ticket = writeTicket.value.fetch_add(1,std::memory_order_acq_rel);
         int index = ticket & (SIZE - 1); 
         while(buffer[index].seq.load(std::memory_order_acquire) != ticket) {
-            _mm_pause();
+            AstraLib::Atomic::cpuRelax();
         }
 
         if constexpr (std::is_trivially_destructible_v<A>){
@@ -111,7 +114,7 @@ class AtomicRingBuffer {
             uint64_t ticket = readTicket.value.fetch_add(1,std::memory_order_acq_rel);
             int index = ticket & (SIZE - 1);
             while(buffer[index].seq.load(std::memory_order_acquire) != ticket + 1) {
-                _mm_pause();
+                AstraLib::Atomic::cpuRelax();
             }
             batchDequeueArray[i] = std::move(buffer[index].data);
             // SIZE is capacity thus +SIZE for the next iteration
@@ -120,8 +123,70 @@ class AtomicRingBuffer {
         return &batchDequeueArray;
     }
 
+    // False if the buffer is full; never spins waiting for space and takes no ticket
+    // on failure. Safe to mix with enqueue().
+    bool tryEnqueue(const A& data) { return tryEnqueueImpl(data); }
+    bool tryEnqueue(A&& data) { return tryEnqueueImpl(std::move(data)); }
+
+    // False if the buffer is empty; never spins waiting for data and takes no ticket
+    // on failure. Safe to mix with dequeue().
+    bool tryDequeue(A& out) {
+        int64_t ticket = readTicket.value.load(std::memory_order_relaxed);
+        for(;;) {
+            Slot<A>& slot = buffer[ticket & (SIZE - 1)];
+            const int64_t diff = slot.seq.load(std::memory_order_acquire) - (ticket + 1);
+            if(diff == 0) {
+                if(readTicket.value.compare_exchange_weak(ticket, ticket + 1, std::memory_order_acq_rel)) {
+                    out = std::move(slot.data);
+                    slot.seq.store(ticket+SIZE,std::memory_order_release);
+                    return true;
+                }
+            } else if(diff < 0) {
+                // Not published yet: empty, or a producer is mid-write
+                return false;
+            } else {
+                // Another consumer took this ticket first
+                ticket = readTicket.value.load(std::memory_order_relaxed);
+            }
+        }
+    }
+
+    // Items currently queued, approximately: writeTicket - readTicket, clamped to [0, SIZE].
+    // Blocking enqueue()/dequeue() take their ticket before they wait, so either side
+    // can run ahead of what is actually in the slots.
+    std::size_t approxSize() const {
+        const int64_t read = readTicket.value.load(std::memory_order_acquire);
+        const int64_t write = writeTicket.value.load(std::memory_order_acquire);
+        if(write <= read) return 0;
+        const std::size_t size = static_cast<std::size_t>(write - read);
+        return size > SIZE ? SIZE : size;
+    }
+
     bool isEmpty() {
         return writeTicket.value.load(std::memory_order_acquire) == readTicket.value.load(std::memory_order_acquire);
+    }
+
+    private:
+    template<typename U>
+    bool tryEnqueueImpl(U&& data) {
+        int64_t ticket = writeTicket.value.load(std::memory_order_relaxed);
+        for(;;) {
+            Slot<A>& slot = buffer[ticket & (SIZE - 1)];
+            const int64_t diff = slot.seq.load(std::memory_order_acquire) - ticket;
+            if(diff == 0) {
+                if(writeTicket.value.compare_exchange_weak(ticket, ticket + 1, std::memory_order_acq_rel)) {
+                    slot.data = std::forward<U>(data);
+                    slot.seq.store(ticket+1,std::memory_order_release);
+                    return true;
+                }
+            } else if(diff < 0) {
+                // The slot still holds the item from one lap ago: full
+                return false;
+            } else {
+                // Another producer took this ticket first
+                ticket = writeTicket.value.load(std::memory_order_relaxed);
+            }
+        }
     }
 
     public:

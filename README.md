@@ -30,12 +30,13 @@ places a live order.
 
 ## Requirements
 
-- Linux, x86/x86-64 — inherits AstraLib's futex syscalls and x86 intrinsics
+- Linux on x86-64 or aarch64 — inherits AstraLib's futex syscalls; spin waits use `AstraLib::Atomic::cpuRelax()`
 - A C++20-capable compiler (developed and tested with GCC 11)
 - CMake 3.22+
 - Boost 1.74+ (`system`, `thread`) and OpenSSL 3.x
 
-simdjson and AstraLib are vendored under `include/`; Boost and OpenSSL are not.
+simdjson and AstraLib are vendored under `include/`; Boost and OpenSSL are not. The vendored
+AstraLib is a modified version (see [NOTICE](NOTICE)).
 
 ## Build
 
@@ -136,6 +137,7 @@ architecture and the design decisions are the creator's.
 
 Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
 
-simdjson and AstraLib are vendored under `include/` and are themselves Apache-2.0;
+simdjson and AstraLib are vendored under `include/` and are themselves Apache-2.0; the
+vendored AstraLib is a modified version of upstream (AI-assisted changes, listed in NOTICE);
 Boost and OpenSSL are linked rather than redistributed. See [NOTICE](NOTICE) for the
 full attribution list.

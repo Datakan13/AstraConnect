@@ -5,6 +5,7 @@
 #include "api/common/error/apiError.hpp"
 #include "api/common/error/includeErrors.hpp"
 #include "model/candle.hpp"
+#include "utils/decimal/fixedPoint.hpp"
 
 class APIManager::Spot::API{
         StreamHolder spot;
@@ -21,7 +22,7 @@ class APIManager::Spot::API{
 
             ThreadSafeParserRAII parser(parserSpot);
             simdjson::ondemand::document candleArray;
-            if(FetchError err = iterateResponse(parser.parser,data.string,candleArray)) return err;
+            if(FetchError err = iterateResponse(parser.parser,data.string,candleArray,data.httpStatus)) return err;
             int index = 0;
             Candle outCandle;
             try {
@@ -34,25 +35,25 @@ class APIManager::Spot::API{
                             outCandle.timestampOpen = field.value().get_int64().value();
                             break;
                         case 1:
-                            outCandle.open = field.value().get_double_in_string().value();
+                            outCandle.open = AstraConnect::Utils::readFixed(field.value());
                             break;
                         case 2:
-                            outCandle.high = field.value().get_double_in_string().value();
+                            outCandle.high = AstraConnect::Utils::readFixed(field.value());
                             break;
                         case 3:
-                            outCandle.low = field.value().get_double_in_string().value();
+                            outCandle.low = AstraConnect::Utils::readFixed(field.value());
                             break;
                         case 4:
-                            outCandle.close = field.value().get_double_in_string().value();
+                            outCandle.close = AstraConnect::Utils::readFixed(field.value());
                             break;
                         case 5:
-                            outCandle.volume = field.value().get_double_in_string().value();
+                            outCandle.volume = AstraConnect::Utils::readFixed128(field.value());
                             break;
                         case 6:
                             outCandle.timestampClose = field.value().get_int64().value();
                             break;
                         case 7:
-                            outCandle.quoteVolume = field.value().get_double_in_string().value();
+                            outCandle.quoteVolume = AstraConnect::Utils::readFixed128(field.value());
                             break;
                         default:
                             break;

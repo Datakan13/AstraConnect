@@ -13,7 +13,7 @@ class OrderbookSnapshotIncoming {
     AstraLib::Atomic::PaddedAtomic<int> lastGivenIndex{0};
     public:
     int64_t updateId;
-    void registerEntry(double price, double volume,bool isBid){
+    void registerEntry(AstraConnect::Utils::Fixed price, AstraConnect::Utils::Fixed volume,bool isBid){
         if(isBid) {
             // Drop the overflow rather than wrapping to 0, which used to overwrite
             // the top of the book with the tail of an oversized snapshot.

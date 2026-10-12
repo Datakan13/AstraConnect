@@ -39,3 +39,29 @@ target_include_directories(topBookTest PRIVATE
 target_link_libraries(topBookTest PRIVATE
     libraries
 )
+
+add_executable(fixedPointTest ${CMAKE_SOURCE_DIR}/tests/fixedPointTest.cpp ${CMAKE_SOURCE_DIR}/include/simdjson/simdjson.cpp)
+target_include_directories(fixedPointTest PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+)
+target_link_libraries(fixedPointTest PRIVATE
+    libraries
+)
+
+add_executable(ringBufferTryTest ${CMAKE_SOURCE_DIR}/tests/ringBufferTryTest.cpp)
+target_link_libraries(ringBufferTryTest PRIVATE
+    libraries
+    pthread
+)
+
+# Live: needs network access to Binance, no API key
+add_executable(rawWebsocketTest ${CMAKE_SOURCE_DIR}/tests/rawWebsocketTest.cpp ${CMAKE_SOURCE_DIR}/include/simdjson/simdjson.cpp)
+target_include_directories(rawWebsocketTest PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+)
+target_link_libraries(rawWebsocketTest PRIVATE
+    libraries
+    Boost::system
+    Boost::thread
+    OpenSSL::SSL OpenSSL::Crypto
+)

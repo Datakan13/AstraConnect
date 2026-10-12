@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cmath>
 #include "model/entry.hpp"
+#include "utils/decimal/fixedPoint.hpp"
 
 // 128 consecutive ticks of one side. A set bit means a level exists at that tick, and
 // slots maps the tick to the level's index in the side's Entry array.
@@ -52,7 +53,7 @@ struct PriceLevel {
 
 // One side of the book, kept sorted by price as bits.
 //
-// A price becomes a tick (price / tickSize), the tick a block id (tick / 128) and an
+// A price becomes a tick (price / tickSize, both in 1e-8 units), the tick a block id (tick / 128) and an
 // offset in that block. Blocks inside the window are reached by direct index; blocks
 // outside it sit in `fallback`, sorted by block id. When a level lands beyond the best
 // edge of the window, or the window empties, the window recentres by moving pointers
@@ -67,7 +68,7 @@ class SortedBook {
     static constexpr int MAX_BLOCKS = 1024;
 
     private:
-    double tickSize = 0;
+    AstraConnect::Utils::Fixed tickSize = 0;
     int64_t windowBase = 0;                     // block id of window[0]
     bool centred = false;
     int windowBlocks = 0;                       // non-null entries in window
@@ -87,6 +88,12 @@ class SortedBook {
     // A bid beyond the window's top, or an ask beyond its bottom, is a new best edge
     static constexpr bool beyondBestEdge(int64_t blockId, int64_t base) {
         return IsBid ? blockId >= base + WINDOW : blockId < base;
+    }
+
+    // Exchange prices are tick multiples, so this is exact; anything else rounds
+    // to the nearest tick, as llround(price / tickSize) did with doubles.
+    int64_t toTick(AstraConnect::Utils::Fixed price) const {
+        return (price + tickSize / 2) / tickSize;
     }
 
     std::vector<PriceLevel*>::iterator fallbackFind(int64_t blockId) {
@@ -164,8 +171,8 @@ class SortedBook {
         clear();
     }
 
-    void setTickSize(double tickSize_) { tickSize = tickSize_; }
-    double getTickSize() const { return tickSize; }
+    void setTickSize(AstraConnect::Utils::Fixed tickSize_) { tickSize = tickSize_; }
+    AstraConnect::Utils::Fixed getTickSize() const { return tickSize; }
 
     // Drops every level. The window recentres on the first level added afterwards.
     void clear() {
@@ -182,8 +189,8 @@ class SortedBook {
 
     // Applies one absolute level from a snapshot or depth diff; volume 0 removes it.
     // Returns false when a new level does not fit; the book is left unchanged.
-    bool update(double price, double volume) {
-        const int64_t tick = std::llround(price / tickSize);
+    bool update(AstraConnect::Utils::Fixed price, AstraConnect::Utils::Fixed volume) {
+        const int64_t tick = toTick(price);
         const int64_t blockId = tick >> 7;
         const int offset = static_cast<int>(tick & 127);
 
@@ -218,8 +225,8 @@ class SortedBook {
     }
 
     // Looks a price up directly through its block. Returns false if there is no level.
-    bool find(double price, Entry& out) {
-        const int64_t tick = std::llround(price / tickSize);
+    bool find(AstraConnect::Utils::Fixed price, Entry& out) {
+        const int64_t tick = toTick(price);
         PriceLevel* level = findBlock(tick >> 7);
         const int offset = static_cast<int>(tick & 127);
         if(!level || !level->test(offset)) return false;

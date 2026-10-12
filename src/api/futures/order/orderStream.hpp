@@ -1,4 +1,5 @@
 #pragma once
+#include "utils/decimal/fixedPoint.hpp"
 #include "core/protocol/requestParameter.hpp"
 #include "manager/apiManager.hpp"
 #include "core/streams/websocketAPIStreamHolder.hpp"
@@ -130,19 +131,17 @@ class APIManager::Futures::OrderStream{
         TimeInForce tif,
         OrderType orderType,
         const std::string& pair,
-        double px,
-        double qty,std::string& orderID) {
+        AstraConnect::Utils::Fixed px,
+        AstraConnect::Utils::Fixed qty,std::string& orderID) {
         try{
             generateID();
             orderID = requestId.request;
             
-            // Turn price and quantity to strings since generateParamsForOrder expects std::string
-            char bufPx[32];
-            char bufQty[32];
-            auto [ptrPx, ec1] = std::to_chars(bufPx, bufPx + sizeof(bufPx), px, std::chars_format::fixed, 2);
-            auto [ptrQty, ec2] = std::to_chars(bufQty, bufQty + sizeof(bufQty), qty, std::chars_format::fixed, 3);
-            std::string pxStr(bufPx, ptrPx);
-            std::string qtyStr(bufQty, ptrQty);
+            // Turn price and quantity (1e-8 units) to exact decimal strings since
+            // generateParamsForOrder expects std::string. Fixed decimal counts used to
+            // cut precision: 2 decimals sent a 0.0042149 price as "0.00".
+            std::string pxStr = AstraConnect::Utils::formatFixed(px);
+            std::string qtyStr = AstraConnect::Utils::formatFixed(qty);
 
             RequestParameter<std::string> params = generateParamsForOrder(posSide,orderSide,tif,orderType,pair,pxStr,qtyStr);
             std::string payload = makeRequestFromRequestParameters(requestId,methodPlaceOrder,params);
@@ -176,17 +175,15 @@ class APIManager::Futures::OrderStream{
         PriceMatchMode priceMatch,
         OrderType orderType,
         const std::string& pair,
-        double px,
-        double qty,std::string& binanceId,std::string& orderID) {
+        AstraConnect::Utils::Fixed px,
+        AstraConnect::Utils::Fixed qty,std::string& binanceId,std::string& orderID) {
         try{
             orderID = requestId.request;
-            // Turn price and quantity to strings since generateParamsForOrder expects std::string
-            char bufPx[32];
-            char bufQty[32];
-            auto [ptrPx, ec1] = std::to_chars(bufPx, bufPx + sizeof(bufPx), px, std::chars_format::fixed, 6);
-            auto [ptrQty, ec2] = std::to_chars(bufQty, bufQty + sizeof(bufQty), qty, std::chars_format::fixed, 6);
-            std::string pxStr(bufPx, ptrPx);
-            std::string qtyStr(bufQty, ptrQty);
+            // Turn price and quantity (1e-8 units) to exact decimal strings since
+            // generateParamsForOrder expects std::string. Fixed decimal counts used to
+            // cut precision: 2 decimals sent a 0.0042149 price as "0.00".
+            std::string pxStr = AstraConnect::Utils::formatFixed(px);
+            std::string qtyStr = AstraConnect::Utils::formatFixed(qty);
             
             RequestParameter<std::string> params = generateParamsForOrder(binanceId,posSide,orderSide,priceMatch,orderType,pair,pxStr,qtyStr);
             std::string payload = makeRequestFromRequestParameters(requestId,methodModifyOrder,params);

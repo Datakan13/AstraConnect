@@ -122,7 +122,7 @@ class WebsocketStreamHolder {
     // On SUCCESS the pointer is nullptr.
     std::pair<ConnectionStatus,FetchError*> getStatus() {
         while(connecting.value.load(std::memory_order_acquire)) {
-            _mm_pause();
+            AstraLib::Atomic::cpuRelax();
         }
         // stopped on purpose, or gave up and shut down -> CLOSED
         if(!(running.value.load(std::memory_order_acquire))) return {ConnectionStatus::CLOSED, lastError.get()};

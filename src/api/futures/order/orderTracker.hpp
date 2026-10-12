@@ -1,4 +1,5 @@
-#pragma once 
+#pragma once
+#include "utils/decimal/fixedPoint.hpp" 
 #include <memory>
 #include <string>
 #include <simdjson/simdjson.h>
@@ -20,7 +21,7 @@ class OrderTracker {
     OrderAccessHolder holder;
     AstraLib::Buffers::AtomicRingBuffer<int64_t,256> activeOrders;
 
-    void registerOrderSent(std::string& id,int64_t timestamp, double price, double quantity, std::string sym, TimeInForce tif,
+    void registerOrderSent(std::string& id,int64_t timestamp, AstraConnect::Utils::Fixed price, AstraConnect::Utils::Fixed quantity, std::string sym, TimeInForce tif,
         OrderSide s, PositionSide pos, OrderType type,simdjson::ondemand::document& doc) {
         AstraLib::Atomic::SpinlockGuard guard(lock);
         map[id] = std::make_unique<Order>(timestamp,pos,s,tif,type,sym,price,quantity);
@@ -110,12 +111,12 @@ public:
             return access.order.sent.timestamp;
         }
 
-        inline double getPrice(std::string& id) {
+        inline AstraConnect::Utils::Fixed getPrice(std::string& id) {
             OrderAccess access(tracker, id);
             return access.order.sent.price;
         }
 
-        inline double getQuantity(std::string& id) {
+        inline AstraConnect::Utils::Fixed getQuantity(std::string& id) {
             OrderAccess access(tracker, id);
             return access.order.sent.quantity;
         }
@@ -170,27 +171,27 @@ public:
             return access.order.getSymbol();
         }
 
-        inline double getPrice(std::string& id) {
+        inline AstraConnect::Utils::Fixed getPrice(std::string& id) {
             OrderAccess access(tracker, id);
             return access.order.getPrice();
         }
 
-        inline double getOrigQty(std::string& id) {
+        inline AstraConnect::Utils::Fixed getOrigQty(std::string& id) {
             OrderAccess access(tracker, id);
             return access.order.getOrigQty();
         }
 
-        inline double getExecutedQty(std::string& id) {
+        inline AstraConnect::Utils::Fixed getExecutedQty(std::string& id) {
             OrderAccess access(tracker, id);
             return access.order.getExecutedQty();
         }
 
-        inline double getCumQty(std::string& id) {
+        inline AstraConnect::Utils::Fixed getCumQty(std::string& id) {
             OrderAccess access(tracker, id);
             return access.order.getCumQty();
         }
 
-        inline double getCumQuote(std::string& id) {
+        inline AstraConnect::Utils::Fixed getCumQuote(std::string& id) {
             OrderAccess access(tracker, id);
             return access.order.getCumQuote();
         }

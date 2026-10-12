@@ -19,7 +19,7 @@ class APIManager::User::SpotStream{
         StreamData data = userDataStream.sendRequest(target,http::verb::post,true,false,listenKeyParameter);
         if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());
         simdjson::ondemand::document doc;
-        if(FetchError err = iterateResponse(parser,data.string,doc)) return err;
+        if(FetchError err = iterateResponse(parser,data.string,doc,data.httpStatus)) return err;
         if(auto ec = doc.find_field("listenKey").get_string(listenKey,true)) {
             return FetchError(APIError::BAD_FIELD,std::string("Failed to parse a field. error: ") + simdjson::error_message(ec));
         }

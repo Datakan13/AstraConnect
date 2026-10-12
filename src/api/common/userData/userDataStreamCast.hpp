@@ -2,7 +2,7 @@
 #include "api/common/userData/userDataStream.hpp"
 #include <type_traits>
 
-void castUserDataStreamptr(void* ptr, AccountUpdate& out) {
+inline void castUserDataStreamptr(void* ptr, AccountUpdate& out) {
   if (!ptr) return; // safety check
   auto cast = static_cast<AccountUpdate*>(ptr);
   out.assets = cast->assets;
@@ -10,14 +10,14 @@ void castUserDataStreamptr(void* ptr, AccountUpdate& out) {
   out.positions = cast->positions;
 }
 
-void castUserDataStreamptr(void* ptr, MarginCall& out) {
+inline void castUserDataStreamptr(void* ptr, MarginCall& out) {
   if (!ptr) return; // safety check
   auto cast = static_cast<MarginCall*>(ptr);
   out.crossWalletBalance = cast->crossWalletBalance;
   out.positions = cast->positions;
 }
 
-void castUserDataStreamptr(void* ptr, OrderUpdate& out) {
+inline void castUserDataStreamptr(void* ptr, OrderUpdate& out) {
   if (!ptr) return;
   auto* cast = static_cast<OrderUpdate*>(ptr);
   out.pair                       = cast->pair;
@@ -56,7 +56,7 @@ void castUserDataStreamptr(void* ptr, OrderUpdate& out) {
   out.GTDExprationTimestamp      = cast->GTDExprationTimestamp;
 }
 
-void castUserDataStreamptr(void* ptr, TradeLite& out) {
+inline void castUserDataStreamptr(void* ptr, TradeLite& out) {
   if (!ptr) return; // safety check
   auto cast = static_cast<TradeLite*>(ptr);
   out.clientID = cast->clientID;
@@ -72,7 +72,7 @@ void castUserDataStreamptr(void* ptr, TradeLite& out) {
   out.tradeTimestamp = cast->tradeTimestamp;
 }
 
-void castUserDataStreamptr(void* ptr, AccountConfigUpdate& out) {
+inline void castUserDataStreamptr(void* ptr, AccountConfigUpdate& out) {
   if (!ptr) return; // safety check
   auto cast = static_cast<AccountConfigUpdate*>(ptr);
   out.leverage = cast->leverage;
@@ -81,7 +81,7 @@ void castUserDataStreamptr(void* ptr, AccountConfigUpdate& out) {
   out.timestamp = cast->timestamp;
 }
 
-void castUserDataStreamptr(void* ptr, StrategyUpdate& out) {
+inline void castUserDataStreamptr(void* ptr, StrategyUpdate& out) {
   if (!ptr) return; // safety check
   auto cast = static_cast<StrategyUpdate*>(ptr);
   out.opCode = cast->opCode;
@@ -93,7 +93,7 @@ void castUserDataStreamptr(void* ptr, StrategyUpdate& out) {
   out.updateTimestamp = cast->updateTimestamp;
 }
 
-void castUserDataStreamptr(void* ptr, GridUpdate& out) {
+inline void castUserDataStreamptr(void* ptr, GridUpdate& out) {
   if (!ptr) return; // safety check
   auto cast = static_cast<GridUpdate*>(ptr);
   out.matchedPNL = cast->matchedPNL;
@@ -109,7 +109,7 @@ void castUserDataStreamptr(void* ptr, GridUpdate& out) {
   out.updateTimestamp = cast->updateTimestamp;
 }
 
-void castUserDataStreamptr(void* ptr, ConditionalOrderReject& out) {
+inline void castUserDataStreamptr(void* ptr, ConditionalOrderReject& out) {
   if (!ptr) return; // safety check
   auto cast = static_cast<ConditionalOrderReject*>(ptr);
   out.orderID = cast->orderID;

@@ -2,6 +2,7 @@
 
 // Atomics
 #include <AstraLib/Atomic/atomicFutex.hpp>
+#include <AstraLib/Atomic/cpuRelax.hpp>
 #include <AstraLib/Atomic/paddedAtomic.hpp>
 #include <AstraLib/Atomic/spinlock.hpp>
 

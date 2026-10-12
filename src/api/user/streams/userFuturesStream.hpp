@@ -39,7 +39,7 @@ class APIManager::User::FuturesStream{
         if(!data) return FetchError(APIError::BOOST_ERROR,data.ec.message());
         try{
             simdjson::ondemand::document doc;
-            if(FetchError err = iterateResponse(parser,data.string,doc)) return err;
+            if(FetchError err = iterateResponse(parser,data.string,doc,data.httpStatus)) return err;
             doc.find_field("listenKey").get_string(listenKey);
             listenKeyPresent.value.store(true,std::memory_order_release);
             return FetchError(APIError::SUCCESS);
@@ -77,7 +77,7 @@ class APIManager::User::FuturesStream{
     // On SUCCESS the pointer is nullptr.
     std::pair<ConnectionStatus,FetchError*> getStatus() {
         while(connecting.value.load(std::memory_order_acquire)) {
-            _mm_pause();
+            AstraLib::Atomic::cpuRelax();
         }
         if(!(listenKeyPresent.value.load(std::memory_order_acquire)) || !(connectionAlive.value.load(std::memory_order_acquire)) ) return {lastStatus.value.load(std::memory_order_acquire), lastError.get()};
         return {ConnectionStatus::SUCCESS, nullptr};
@@ -107,7 +107,8 @@ class APIManager::User::FuturesStream{
                 connecting.value.store(false,std::memory_order_release);
                 return;
             }
-            std::string websocketTarget = "/ws/" + listenKey;
+            // Routed path: user data is only delivered under /private since 2026-04-23
+            std::string websocketTarget = "/private/ws/" + listenKey;
             userDataStreamWebsocket = std::make_unique<WebsocketStreamHolder<UserDataStream,decltype(parseUserDataStream)>>(
                 parseUserDataStream,
                 base_.hostFuturesWebsocket,

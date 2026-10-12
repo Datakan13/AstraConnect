@@ -1,17 +1,18 @@
 #pragma once
+#include "utils/decimal/fixedPoint.hpp"
 #include "api/common/enums/commonTypes.hpp"
 class OrderSent {
     public:
     int64_t timestamp;
-    double price;
-    double quantity;
+    AstraConnect::Utils::Fixed price;
+    AstraConnect::Utils::Fixed quantity;
     std::string pair;
     TimeInForce timeInForce;
     OrderSide side;
     PositionSide positionSide;
     OrderType type;
 
-    OrderSent(int64_t ts, double p, double q, std::string sym, TimeInForce tif,
+    OrderSent(int64_t ts, AstraConnect::Utils::Fixed p, AstraConnect::Utils::Fixed q, std::string sym, TimeInForce tif,
           OrderSide s, PositionSide pos, OrderType t)
     : timestamp(ts), price(p), quantity(q),
       pair(std::move(sym)), timeInForce(tif),

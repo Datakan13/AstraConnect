@@ -7,7 +7,8 @@
 
 class APIManager::Futures::Streams::TradeEventStream{
         std::string pair;
-        const std::string target = "/ws/"+ pair +"@trade";
+        // Routed path: @trade is a /public stream since 2026-04-23
+        const std::string target = "/public/ws/"+ pair +"@trade";
         std::unique_ptr<WebsocketStreamHolder<TradeEvent,decltype(parseTradeEvent)>> tradeEventStream;
         AstraLib::Atomic::PaddedAtomic<bool> connected = false;
         AstraLib::Atomic::PaddedAtomic<bool> connecting = true;
@@ -25,7 +26,7 @@ class APIManager::Futures::Streams::TradeEventStream{
         // On SUCCESS the pointer is nullptr.
         std::pair<ConnectionStatus,FetchError*> getStatus() {
             while(connecting.value.load(std::memory_order_acquire)) {
-                _mm_pause();
+                AstraLib::Atomic::cpuRelax();
             }
             if(!(connected.value.load(std::memory_order_acquire)) ) return {lastStatus.value.load(std::memory_order_acquire), lastError.get()};
             return {ConnectionStatus::SUCCESS, nullptr};

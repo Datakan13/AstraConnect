@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <thread>
 #include <chrono>
-#include <immintrin.h>
+#include <AstraLib/Atomic/cpuRelax.hpp>
 #include <AstraLib/Atomic/paddedAtomic.hpp>
 
 namespace AstraLib {
@@ -17,7 +17,7 @@ class alignas(64) Spinlock{
     void lock() {
         while (atomic.value.exchange(true, std::memory_order_acquire)) {
             for (int i = 0; i < waitTime; ++i) {
-                _mm_pause();
+                AstraLib::Atomic::cpuRelax();
             }
         }
     }

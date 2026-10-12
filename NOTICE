@@ -19,6 +19,10 @@ Vendored (redistributed as part of this repository):
   AstraLib  --  include/AstraLib/
     Apache License, Version 2.0
     https://github.com/Datakan13/AstraLib
+    Modified version: adds cpuRelax (portable spin pause, replacing
+    _mm_pause), non-blocking tryEnqueue/tryDequeue/approxSize on
+    AtomicRingBuffer, and an aarch64 Timer. The modifications were made
+    with AI assistance.
 
 Linked, not redistributed:
 

@@ -1,6 +1,7 @@
 #pragma once
 #include <simdjson/simdjson.h>
 #include "model/entry.hpp"
+#include "utils/decimal/fixedPoint.hpp"
 #include "api/orderbook/orderbookArrays.hpp"
 
 // Decodes a combined-stream depth diff into a slot of the orderbook's holder.
@@ -43,13 +44,13 @@ struct DepthDecoder {
     static bool readLevels(Levels&& levels, DepthEntries& out, int64_t& count) {
         for(auto level : levels) {
             if(count >= DEPTH_EVENT_CAPACITY) return false;
-            double values[2];
+            AstraConnect::Utils::Fixed values[2];
             int fields = 0;
             // Must be a named variable: iterating the temporary chain directly crashes
             // at -O2, as the intermediates die before the loop body runs
             auto pair = level.value().get_array().value();
             for(auto field : pair) {
-                if(fields < 2) values[fields] = field.value().get_double_in_string().value();
+                if(fields < 2) values[fields] = AstraConnect::Utils::readFixed(field.value());
                 fields++;
             }
             if(fields < 2) return false;

@@ -117,7 +117,7 @@ class APIManager::Orderbook {
                 stop(FetchError(APIError::DISCONNECTED, err ? err->getErrorMsg() : std::string("Depth stream closed")));
                 return false;
             }
-            _mm_pause();
+            AstraLib::Atomic::cpuRelax();
         }
         return true;
     }
@@ -212,7 +212,7 @@ class APIManager::Orderbook {
     }
 
     // Copies up to out.size() levels into out, best first (highest bid, lowest ask).
-    // Returns how many were written. Prices are the exchange's own values.
+    // Returns how many were written. Prices and volumes are in 1e-8 units, exactly as sent.
     size_t getTopBids(std::span<Entry> out) {
         AstraLib::Atomic::SpinlockGuard guard(updatingLock);
         return bidBook->top(out.data(), out.size());
@@ -233,7 +233,7 @@ class APIManager::Orderbook {
     }
 
     // Looks a single price up directly in the sorted book.
-    PriceValid getEntryWithPrice(double price,Entry& out,bool isBid) {
+    PriceValid getEntryWithPrice(AstraConnect::Utils::Fixed price,Entry& out,bool isBid) {
         AstraLib::Atomic::SpinlockGuard guard(updatingLock);
         const bool found = isBid ? bidBook->find(price,out) : askBook->find(price,out);
         return found ? PriceValid::VALID : PriceValid::NOT_VALID;
@@ -241,7 +241,7 @@ class APIManager::Orderbook {
 
     Orderbook(APIManager& base_,std::string pair_,APIManager::Futures::API& api) :
     arrayHolder(std::make_unique<OrderbookArrayHolder>()),
-    websocketStream(DepthDecoder{arrayHolder.get()},base_.hostFuturesWebsocket,"/stream?streams="+ pair_ +"@depth",base_.websocketParser),
+    websocketStream(DepthDecoder{arrayHolder.get()},base_.hostFuturesWebsocket,"/public/stream?streams="+ pair_ +"@depth",base_.websocketParser),
     futuresApi(api), pair(pair_),
     bidBook(std::make_unique<SortedBook<true>>()), askBook(std::make_unique<SortedBook<false>>()) {
         thread = std::thread(&Orderbook::executionLoop,this);

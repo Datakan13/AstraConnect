@@ -7,7 +7,8 @@
 #include <AstraLib/AstraLib.hpp>
 class APIManager::Futures::Streams::MarkPriceStream{
     const std::string pair;
-    const std::string target = "/ws/"+pair+"@markPrice@1s";
+    // Routed path: since 2026-04-23 markPrice is only delivered under /market
+    const std::string target = "/market/ws/"+pair+"@markPrice@1s";
 
     std::unique_ptr<WebsocketStreamHolder<MarkPrice, decltype(parseMarkPrice)>> markPriceStream;
     AstraLib::Atomic::PaddedAtomic<bool> connected = false;
@@ -26,7 +27,7 @@ class APIManager::Futures::Streams::MarkPriceStream{
     // On SUCCESS the pointer is nullptr.
     std::pair<ConnectionStatus,FetchError*> getStatus() {
         while(connecting.value.load(std::memory_order_acquire)) {
-            _mm_pause();
+            AstraLib::Atomic::cpuRelax();
         }
         if(!(connected.value.load(std::memory_order_acquire)) ) return {lastStatus.value.load(std::memory_order_acquire), lastError.get()};
         return {ConnectionStatus::SUCCESS, nullptr};

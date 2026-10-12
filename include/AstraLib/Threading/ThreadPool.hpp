@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <atomic>
 #include <queue>
+#include <AstraLib/Atomic/cpuRelax.hpp>
 #include <AstraLib/Buffers/atomicRingBuffer.hpp>
 
 namespace AstraLib {
@@ -163,7 +164,7 @@ private:
                             id = (id + 1) % THREAD_COUNT;
                         } while (id != start);
                         if (assigned) break;
-                        _mm_pause();
+                        AstraLib::Atomic::cpuRelax();
                     }
                     
                 }

@@ -1,4 +1,5 @@
 #pragma once
+#include "utils/decimal/fixedPoint.hpp"
 #include <memory>
 #include "api/common/enums/commonTypes.hpp"
 #include "api/common/enums/toEnum.hpp"
@@ -68,19 +69,19 @@ public:
     std::string symbol;       // "BTCUSDT"
     OrderStatus orderStatus;  // "NEW"  (renamed to avoid shadowing)
     std::string clientOrderId;// "iCXL1BywlBaf2sesNUrVl3"
-    double price;        // "43187.00"
-    double avgPrice;     // "0.00"
-    double origQty;      // "0.100"
-    double executedQty;  // "0.000"
-    double cumQty;       // "0.000"
-    double cumQuote;     // "0.00000"
+    AstraConnect::Utils::Fixed price;        // "43187.00"
+    AstraConnect::Utils::Fixed avgPrice;     // "0.00"
+    AstraConnect::Utils::Fixed origQty;      // "0.100"
+    AstraConnect::Utils::Fixed executedQty;  // "0.000"
+    AstraConnect::Utils::Fixed cumQty;       // "0.000"
+    AstraConnect::Utils::Fixed cumQuote;     // "0.00000"
     TimeInForce timeInForce;  // "GTC"
     OrderType type;         // "LIMIT"
     bool reduceOnly;          // false
     bool closePosition;       // false
     OrderSide side;         // "BUY"
     PositionSide positionSide; // "BOTH"
-    double stopPrice;    // "0.00"
+    AstraConnect::Utils::Fixed stopPrice;    // "0.00"
     WorkingType workingType;  // "CONTRACT_PRICE"
     bool priceProtect;        // false
     OrderType origType;     // "LIMIT"
@@ -106,12 +107,12 @@ public:
         orderStatus = returnOrderStatus(intermediateString);
 
         obj["clientOrderId"].get_string(clientOrderId);
-        price = obj["price"].get_double_in_string().value();
-        avgPrice = obj["avgPrice"].get_double_in_string().value();
-        origQty = obj["origQty"].get_double_in_string().value();
-        executedQty = obj["executedQty"].get_double_in_string().value();
-        cumQty = obj["cumQty"].get_double_in_string().value();
-        cumQuote = obj["cumQuote"].get_double_in_string().value();
+        price = AstraConnect::Utils::readFixed(obj["price"]);
+        avgPrice = AstraConnect::Utils::readFixed(obj["avgPrice"]);
+        origQty = AstraConnect::Utils::readFixed(obj["origQty"]);
+        executedQty = AstraConnect::Utils::readFixed(obj["executedQty"]);
+        cumQty = AstraConnect::Utils::readFixed(obj["cumQty"]);
+        cumQuote = AstraConnect::Utils::readFixed(obj["cumQuote"]);
 
         obj["timeInForce"].get_string(intermediateString);
         timeInForce = returnTimeInForce(intermediateString);
@@ -126,7 +127,7 @@ public:
         obj["positionSide"].get_string(intermediateString);
 
         positionSide = returnPositionSide(intermediateString);
-        stopPrice = obj["stopPrice"].get_double_in_string().value();
+        stopPrice = AstraConnect::Utils::readFixed(obj["stopPrice"]);
 
         obj["workingType"].get_string(intermediateString);
         workingType = returnWorkingType(intermediateString);
@@ -180,19 +181,19 @@ public:
     std::string symbol;       // "BTCUSDT"
     OrderStatus orderStatus;  // "NEW"  (renamed to avoid shadowing)
     std::string clientOrderId;// "iCXL1BywlBaf2sesNUrVl3"
-    double price;        // "43187.00"
-    double avgPrice;     // "0.00"
-    double origQty;      // "0.100"
-    double executedQty;  // "0.000"
-    double cumQty;       // "0.000"
-    double cumQuote;     // "0.00000"
+    AstraConnect::Utils::Fixed price;        // "43187.00"
+    AstraConnect::Utils::Fixed avgPrice;     // "0.00"
+    AstraConnect::Utils::Fixed origQty;      // "0.100"
+    AstraConnect::Utils::Fixed executedQty;  // "0.000"
+    AstraConnect::Utils::Fixed cumQty;       // "0.000"
+    AstraConnect::Utils::Fixed cumQuote;     // "0.00000"
     TimeInForce timeInForce;  // "GTC"
     OrderType type;         // "LIMIT"
     bool reduceOnly;          // false
     bool closePosition;       // false
     OrderSide side;         // "BUY"
     PositionSide positionSide; // "BOTH"
-    double stopPrice;    // "0.00"
+    AstraConnect::Utils::Fixed stopPrice;    // "0.00"
     WorkingType workingType;  // "CONTRACT_PRICE"
     bool priceProtect;        // false
     OrderType origType;     // "LIMIT"
@@ -218,12 +219,12 @@ public:
         orderStatus = returnOrderStatus(intermediateString);
 
         obj["clientOrderId"].get_string(clientOrderId);
-        price = obj["price"].get_double_in_string().value();
-        avgPrice = obj["avgPrice"].get_double_in_string().value();
-        origQty = obj["origQty"].get_double_in_string().value();
-        executedQty = obj["executedQty"].get_double_in_string().value();
-        cumQty = obj["cumQty"].get_double_in_string().value();
-        cumQuote = obj["cumQuote"].get_double_in_string().value();
+        price = AstraConnect::Utils::readFixed(obj["price"]);
+        avgPrice = AstraConnect::Utils::readFixed(obj["avgPrice"]);
+        origQty = AstraConnect::Utils::readFixed(obj["origQty"]);
+        executedQty = AstraConnect::Utils::readFixed(obj["executedQty"]);
+        cumQty = AstraConnect::Utils::readFixed(obj["cumQty"]);
+        cumQuote = AstraConnect::Utils::readFixed(obj["cumQuote"]);
 
         obj["timeInForce"].get_string(intermediateString);
         timeInForce = returnTimeInForce(intermediateString);
@@ -238,7 +239,7 @@ public:
         obj["positionSide"].get_string(intermediateString);
 
         positionSide = returnPositionSide(intermediateString);
-        stopPrice = obj["stopPrice"].get_double_in_string().value();
+        stopPrice = AstraConnect::Utils::readFixed(obj["stopPrice"]);
 
         obj["workingType"].get_string(intermediateString);
         workingType = returnWorkingType(intermediateString);
@@ -285,23 +286,23 @@ public:
     int status;
 
     std::string clientOrderId;   // "myOrder1"
-    double cumQty;               // "0"
-    double cumQuote;             // "0"
-    double executedQty;          // "0"
+    AstraConnect::Utils::Fixed cumQty;               // "0"
+    AstraConnect::Utils::Fixed cumQuote;             // "0"
+    AstraConnect::Utils::Fixed executedQty;          // "0"
     int64_t orderId;             // 283194212
-    double origQty;              // "11"
+    AstraConnect::Utils::Fixed origQty;              // "11"
     OrderType origType;          // "TRAILING_STOP_MARKET"
-    double price;                // "0"
+    AstraConnect::Utils::Fixed price;                // "0"
     bool reduceOnly;             // false
     OrderSide side;              // "BUY"
     PositionSide positionSide;   // "SHORT"
     OrderStatus orderStatus;     // "CANCELED"
-    double stopPrice;            // "9300"
+    AstraConnect::Utils::Fixed stopPrice;            // "9300"
     bool closePosition;          // false
     std::string symbol;          // "BTCUSDT"
     TimeInForce timeInForce;     // "GTC"
     OrderType type;              // "TRAILING_STOP_MARKET"
-    double activatePrice;        // "9020"
+    AstraConnect::Utils::Fixed activatePrice;        // "9020"
     double priceRate;            // "0.3"
     int64_t updateTime;          // 1571110484038
     WorkingType workingType;     // "CONTRACT_PRICE"
@@ -321,20 +322,20 @@ public:
 
         obj["clientOrderId"].get_string(clientOrderId);
 
-        cumQty = obj["cumQty"].get_double_in_string().value();
+        cumQty = AstraConnect::Utils::readFixed(obj["cumQty"]);
 
-        cumQuote = obj["cumQuote"].get_double_in_string().value();        
+        cumQuote = AstraConnect::Utils::readFixed(obj["cumQuote"]);        
 
-        executedQty = obj["executedQty"].get_double_in_string().value();
+        executedQty = AstraConnect::Utils::readFixed(obj["executedQty"]);
 
         orderId = obj["orderId"].get_int64().value();
 
-        origQty = obj["origQty"].get_double_in_string().value();
+        origQty = AstraConnect::Utils::readFixed(obj["origQty"]);
 
         obj["origType"].get_string(intermediateString);
         origType = returnOrderType(intermediateString);
 
-        price = obj["price"].get_double_in_string().value();
+        price = AstraConnect::Utils::readFixed(obj["price"]);
 
         reduceOnly = obj["reduceOnly"].get_bool().value();
 
@@ -347,7 +348,7 @@ public:
         obj["status"].get_string(intermediateString);
         orderStatus = returnOrderStatus(intermediateString);
 
-        stopPrice = obj["stopPrice"].get_double_in_string().value();
+        stopPrice = AstraConnect::Utils::readFixed(obj["stopPrice"]);
 
         closePosition = obj["closePosition"].get_bool().value();
 
@@ -359,7 +360,7 @@ public:
         obj["type"].get_string(intermediateString);
         type = returnOrderType(intermediateString);
 
-        activatePrice = obj["activatePrice"].get_double_in_string().value();
+        activatePrice = AstraConnect::Utils::readFixed(obj["activatePrice"]);
 
         priceRate = obj["priceRate"].get_double_in_string().value();
 
@@ -411,13 +412,13 @@ public:
     OrderType type;
     WorkingType workingType;
 
-    double avgPrice;
-    double cumQuote;
-    double executedQty;
-    double origQty;
-    double price;
-    double stopPrice;
-    double activatePrice;
+    AstraConnect::Utils::Fixed avgPrice;
+    AstraConnect::Utils::Fixed cumQuote;
+    AstraConnect::Utils::Fixed executedQty;
+    AstraConnect::Utils::Fixed origQty;
+    AstraConnect::Utils::Fixed price;
+    AstraConnect::Utils::Fixed stopPrice;
+    AstraConnect::Utils::Fixed activatePrice;
     double priceRate;
 
     bool reduceOnly;
@@ -436,13 +437,13 @@ public:
         result["symbol"].get_string(symbol);
 
         // numeric fields as strings
-        avgPrice       = result["avgPrice"].get_double_in_string().value();
-        cumQuote       = result["cumQuote"].get_double_in_string().value();
-        executedQty    = result["executedQty"].get_double_in_string().value();
-        origQty        = result["origQty"].get_double_in_string().value();
-        price          = result["price"].get_double_in_string().value();
-        stopPrice      = result["stopPrice"].get_double_in_string().value();
-        activatePrice  = result["activatePrice"].get_double_in_string().value();
+        avgPrice       = AstraConnect::Utils::readFixed(result["avgPrice"]);
+        cumQuote       = AstraConnect::Utils::readFixed(result["cumQuote"]);
+        executedQty    = AstraConnect::Utils::readFixed(result["executedQty"]);
+        origQty        = AstraConnect::Utils::readFixed(result["origQty"]);
+        price          = AstraConnect::Utils::readFixed(result["price"]);
+        stopPrice      = AstraConnect::Utils::readFixed(result["stopPrice"]);
+        activatePrice  = AstraConnect::Utils::readFixed(result["activatePrice"]);
         priceRate      = result["priceRate"].get_double_in_string().value();
 
         // bools
@@ -502,11 +503,11 @@ public:
     int status;                    // 200
     std::string accountAlias;      // "SgsR"
     std::string asset;             // "USDT"
-    double balance;                // "122607.35137903"
-    double crossWalletBalance;     // "23.72469206"
-    double crossUnPnl;             // "0.00000000"
-    double availableBalance;       // "23.72469206"
-    double maxWithdrawAmount;      // "23.72469206"
+    AstraConnect::Utils::Fixed balance;                // "122607.35137903"
+    AstraConnect::Utils::Fixed crossWalletBalance;     // "23.72469206"
+    AstraConnect::Utils::Fixed crossUnPnl;             // "0.00000000"
+    AstraConnect::Utils::Fixed availableBalance;       // "23.72469206"
+    AstraConnect::Utils::Fixed maxWithdrawAmount;      // "23.72469206"
     bool marginAvailable;          // true
     int64_t updateTime;            // 1617939110373
 
@@ -522,11 +523,11 @@ public:
             obj["accountAlias"].get_string(accountAlias);
             obj["asset"].get_string(asset);
             if(asset != "USDT") continue;
-            balance = obj["balance"].get_double_in_string().value();
-            crossWalletBalance = obj["crossWalletBalance"].get_double_in_string().value();
-            crossUnPnl = obj["crossUnPnl"].get_double_in_string().value();
-            availableBalance = obj["availableBalance"].get_double_in_string().value();
-            maxWithdrawAmount = obj["maxWithdrawAmount"].get_double_in_string().value();
+            balance = AstraConnect::Utils::readFixed(obj["balance"]);
+            crossWalletBalance = AstraConnect::Utils::readFixed(obj["crossWalletBalance"]);
+            crossUnPnl = AstraConnect::Utils::readFixed(obj["crossUnPnl"]);
+            availableBalance = AstraConnect::Utils::readFixed(obj["availableBalance"]);
+            maxWithdrawAmount = AstraConnect::Utils::readFixed(obj["maxWithdrawAmount"]);
             marginAvailable = obj["marginAvailable"].get_bool().value();
             updateTime = obj["updateTime"].get_int64().value();
             break; // only one asset usually relevant for USDT
@@ -593,62 +594,62 @@ public:
         }
     }
 
-    double getPrice(OrderTypeSent event) {
+    AstraConnect::Utils::Fixed getPrice(OrderTypeSent event) {
         switch (event) {
             case OrderTypeSent::NEW: if (newOrder) return newOrder->price;
             case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->price;
             case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->price;
             case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->price;
-            default: return 0.0;
+            default: return 0;
         }
     }
 
-    double getOrigQty(OrderTypeSent event) {
+    AstraConnect::Utils::Fixed getOrigQty(OrderTypeSent event) {
         switch (event) {
             case OrderTypeSent::NEW: if (newOrder) return newOrder->origQty;
             case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->origQty;
             case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->origQty;
             case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->origQty;
-            default: return 0.0;
+            default: return 0;
         }
     }
 
-    double getExecutedQty(OrderTypeSent event) {
+    AstraConnect::Utils::Fixed getExecutedQty(OrderTypeSent event) {
         switch (event) {
             case OrderTypeSent::NEW: if (newOrder) return newOrder->executedQty;
             case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->executedQty;
             case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->executedQty;
             case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->executedQty;
-            default: return 0.0;
+            default: return 0;
         }
     }
 
-    double getCumQty(OrderTypeSent event) {
+    AstraConnect::Utils::Fixed getCumQty(OrderTypeSent event) {
         switch (event) {
             case OrderTypeSent::NEW: if (newOrder) return newOrder->cumQty;
             case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->cumQty;
             case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->cumQty;
             case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->executedQty; // alias for compatibility
-            default: return 0.0;
+            default: return 0;
         }
     }
 
-    double getCumQuote(OrderTypeSent event) {
+    AstraConnect::Utils::Fixed getCumQuote(OrderTypeSent event) {
         switch (event) {
             case OrderTypeSent::NEW: if (newOrder) return newOrder->cumQuote;
             case OrderTypeSent::CANCEL: if (cancelOrder) return cancelOrder->cumQuote;
             case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->cumQuote;
             case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->cumQuote;
-            default: return 0.0;
+            default: return 0;
         }
     }
 
-    double getAvgPrice(OrderTypeSent event) {
+    AstraConnect::Utils::Fixed getAvgPrice(OrderTypeSent event) {
         switch (event) {
             case OrderTypeSent::NEW: if (newOrder) return newOrder->avgPrice;
             case OrderTypeSent::MODIFY: if (modifyOrder) return modifyOrder->avgPrice;
             case OrderTypeSent::QUERY: if (queryOrder) return queryOrder->avgPrice;
-            default: return 0.0;
+            default: return 0;
         }
     }
 
@@ -789,29 +790,29 @@ public:
         return "";
     }
 
-    double getBalance() const {
+    AstraConnect::Utils::Fixed getBalance() const {
         if (accountInfo) return accountInfo->balance;
-        return 0.0;
+        return 0;
     }
 
-    double getCrossWalletBalance() const {
+    AstraConnect::Utils::Fixed getCrossWalletBalance() const {
         if (accountInfo) return accountInfo->crossWalletBalance;
-        return 0.0;
+        return 0;
     }
 
-    double getCrossUnPnl() const {
+    AstraConnect::Utils::Fixed getCrossUnPnl() const {
         if (accountInfo) return accountInfo->crossUnPnl;
-        return 0.0;
+        return 0;
     }
 
-    double getAvailableBalance() const {
+    AstraConnect::Utils::Fixed getAvailableBalance() const {
         if (accountInfo) return accountInfo->availableBalance;
-        return 0.0;
+        return 0;
     }
 
-    double getMaxWithdrawAmount() const {
+    AstraConnect::Utils::Fixed getMaxWithdrawAmount() const {
         if (accountInfo) return accountInfo->maxWithdrawAmount;
-        return 0.0;
+        return 0;
     }
 
     bool getMarginAvailable() const {
