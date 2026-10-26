@@ -1,0 +1,135 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  schedule:
+    - cron: "17 3 * * *"   # nightly soak
+  workflow_dispatch:
+    inputs:
+      soak_repeats:
+        description: "Times to repeat each stress test in the soak job"
+        default: "25"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# The live tests (rawWebsocketTest, apiTest) are never run here: apiTest places a
+# real order, and Binance refuses connections from US-hosted runners anyway.
+
+jobs:
+  build-test:
+    if: github.event_name != 'schedule'
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: gcc-11 (ubuntu-22.04)
+            os: ubuntu-22.04
+            cxx: g++
+            experimental: false
+          - name: clang-14 (ubuntu-22.04)
+            os: ubuntu-22.04
+            cxx: clang++
+            experimental: false
+          # Newer compiler and Boost 1.83; allowed to fail until it has been seen green
+          - name: gcc-13 (ubuntu-24.04, canary)
+            os: ubuntu-24.04
+            cxx: g++
+            experimental: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build libboost-system-dev libboost-thread-dev libssl-dev
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+      - name: Build everything, live tests included
+        run: cmake --build build
+      - name: Unit tests
+        run: ctest --test-dir build -L unit --output-on-failure
+      - name: Stress tests
+        run: ctest --test-dir build -L stress --output-on-failure
+
+  sanitizers:
+    if: github.event_name != 'schedule'
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: asan+ubsan
+            sanitize: address,undefined
+            scale: 4
+          - name: tsan
+            sanitize: thread
+            scale: 10
+    env:
+      ASTRA_STRESS_SCALE: ${{ matrix.scale }}
+      ASAN_OPTIONS: detect_leaks=1:abort_on_error=1:strict_string_checks=1
+      UBSAN_OPTIONS: print_stacktrace=1
+      TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build libboost-system-dev libboost-thread-dev libssl-dev
+      # Runner kernels use 32 bits of mmap randomisation, which the clang 14
+      # sanitizer runtimes cannot map their shadow memory around
+      - name: Reduce ASLR entropy for the sanitizer runtimes
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+      # Clang: GCC 11 takes several minutes per parser-heavy file with sanitizers
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo -DASTRA_SANITIZE=${{ matrix.sanitize }}
+      - name: Build offline tests
+        run: cmake --build build --target offline_tests
+      - name: Run offline tests
+        run: ctest --test-dir build --output-on-failure
+
+  soak:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    name: stress soak (${{ matrix.name }})
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: release
+            build_type: Release
+            sanitize: ""
+            scale: 1
+          - name: tsan
+            build_type: RelWithDebInfo
+            sanitize: thread
+            scale: 4
+    env:
+      ASTRA_STRESS_SCALE: ${{ matrix.scale }}
+      TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+      REPEATS: ${{ github.event.inputs.soak_repeats || '25' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build libboost-system-dev libboost-thread-dev libssl-dev
+      - name: Reduce ASLR entropy for the sanitizer runtimes
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DASTRA_SANITIZE=${{ matrix.sanitize }}
+      - name: Build offline tests
+        run: cmake --build build --target offline_tests
+      - name: Repeat stress tests until one fails
+        run: ctest --test-dir build -L stress --repeat until-fail:${REPEATS} --output-on-failure

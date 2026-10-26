@@ -254,13 +254,13 @@ class StrategyUpdate {
         timestamp = doc["T"].get_int64().value();
         auto obj = doc["su"].get_object().value();
         strategyID = obj["si"].get_int64().value();
-        doc["st"].get_string(intermediateString);
+        obj["st"].get_string(intermediateString);
         strategyType = returnStrategyType(intermediateString);
-        doc["ss"].get_string(intermediateString);
+        obj["ss"].get_string(intermediateString);
         strategyStatus = returnStrategyStatus(intermediateString);
-        doc["s"].get_string(pair);
-        updateTimestamp = doc["ut"].get_int64().value();
-        opCode = returnOpCode(doc["c"].get_int64().value());
+        obj["s"].get_string(pair);
+        updateTimestamp = obj["ut"].get_int64().value();
+        opCode = returnOpCode(obj["c"].get_int64().value());
     }
 
     StrategyUpdate(simdjson::ondemand::document& doc) {

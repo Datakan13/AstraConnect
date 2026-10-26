@@ -26,8 +26,9 @@ levels are read directly (`getTopBids`, `getBestAsk`, `getEntryWithPrice`).
 **Known broken** — the user data stream has no listen key keepalive, so Binance expires the
 key after 60 minutes. The spot surface is one endpoint deep.
 
-There is no CI yet. `tests/` holds standalone test programs run by hand, one of which places a
-live order.
+CI builds with GCC and Clang and runs the offline tests on every push, plus ASan/UBSan and
+TSan builds and a nightly stress soak; see [Testing](#testing). The live tests are run by hand,
+and one of them places a real order.
 
 ## Requirements
 
@@ -125,26 +126,58 @@ absent otherwise. Every parsing bug found so far was in a payload nobody had re-
 
 ## Testing
 
-Each test is its own executable, run by hand. Nothing runs them automatically yet.
-
-Offline:
-
-- `topBookTest` — checks the sorted book against `std::map` under random updates
-- `fixedPointTest` — decimal string ↔ fixed-point conversion, including on real simdjson fields
-- `ringBufferTryTest` — the non-blocking paths of the vendored AstraLib ring buffer
-
-Live (needs network access to Binance):
-
-- `rawWebsocketTest` — `RawWebsocket` and `fetchRaw`; no API key needed
-- `apiTest` — **places a real order**, so read it before running it
-
-The normal build builds all of them:
+Each test is its own executable. The offline ones are registered with CTest and labelled
+`unit` (fast, deterministic) or `stress` (multi-threaded or long randomised runs):
 
 ```
 cmake --build build
+ctest --test-dir build                 # all offline tests
+ctest --test-dir build -L unit         # just the fast ones
 ```
 
-A proper test suite, sanitizer builds and CI are all still outstanding.
+Offline, `unit`:
+
+- `topBookTest` — checks the sorted book against `std::map` under random updates
+- `fixedPointTest` — decimal string ↔ fixed-point conversion, including on real simdjson fields
+- `payloadParseTest` — every payload in [doc/payloads](doc/payloads/README.md) through its parser,
+  the error helpers and enum mapping, then ~56k truncated and corrupted copies of those payloads,
+  each run in a child process so a crash is pinned to the input that caused it
+- `requestSigningTest` — request building and HMAC signing, including Binance's published
+  signature example
+- `backoffTest` — the reconnect schedule and its interruptible wait
+
+Offline, `stress`:
+
+- `ringBufferTryTest` — the non-blocking paths of the vendored AstraLib ring buffer
+- `depthDecoderTest` — the depth diff decoder and its slot holder, including a producer/consumer
+  run that checks no slot is reused while its event is still queued
+- `sortedBookStressTest` — the sorted book at its level and block limits, with price jumps of
+  millions of ticks and concurrent readers
+- `concurrencyStressTest` — Spinlock, the shared parser, the index pool, `OrderTracker` and
+  backoff shutdown, from many threads at once
+
+`ASTRA_STRESS_SCALE=N` divides the stress iteration counts by N. Sanitizer builds:
+
+```
+cmake -S . -B build-asan -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DASTRA_SANITIZE=address,undefined
+cmake -S . -B build-tsan -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DASTRA_SANITIZE=thread
+cmake --build build-tsan --target offline_tests
+ASTRA_STRESS_SCALE=10 ctest --test-dir build-tsan
+```
+
+Clang is recommended for these: GCC 11 takes several minutes per parser-heavy file with
+sanitizers on. If the sanitizer runtime fails with "unexpected memory mapping", lower the ASLR
+entropy (`sudo sysctl vm.mmap_rnd_bits=28`) or run under `setarch -R`.
+
+Confirmed library bugs that are not fixed yet are written as `KNOWN_BUG` checks: they print
+`[KNOWN BUG]` and pass while the bug is present, and fail once it is fixed, so the check is turned
+into an ordinary one.
+
+Live (needs network access to Binance, never run by CTest or CI):
+
+- `rawWebsocketTest` — `RawWebsocket` and `fetchRaw`; no API key needed. Configure with
+  `-DASTRA_LIVE_TESTS=ON` to register it with CTest under the `live` label
+- `apiTest` — **places a real order**, so read it before running it
 
 ## Notes
 

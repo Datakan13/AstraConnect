@@ -170,7 +170,13 @@ class WebsocketStreamHolder {
             }
             ThreadSafeParserRAII parser(parserWrapper);
 
-            data = func(json,parser.parser);
+            // A parser that throws drops this message only. Uncaught, the exception
+            // left the thread and std::terminate took the process down.
+            try {
+                data = func(json,parser.parser);
+            } catch(std::exception&) {
+                continue;
+            }
             bufferOut.enqueue(data);
             controlVariable.value.fetch_add(1,std::memory_order_release);
         }

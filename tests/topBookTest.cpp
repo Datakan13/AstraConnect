@@ -90,11 +90,11 @@ int main() {
     book->setTickSize(FIXED_SCALE / 10);
     for(int i = 0; i < 1000; i++) book->update(80000 * FIXED_SCALE - i * (FIXED_SCALE / 10), FIXED_SCALE);
     Entry out[20];
-    volatile Fixed sink = 0;
+    volatile uint64_t sink = 0;   // unsigned: the sum wraps, which is UB for int64
     auto average = [&](size_t count) {
         constexpr int iterations = 1000000;
         auto start = std::chrono::steady_clock::now();
-        for(int i = 0; i < iterations; i++) { book->top(out, count); sink = sink + out[0].price; }
+        for(int i = 0; i < iterations; i++) { book->top(out, count); sink = sink + uint64_t(out[0].price); }
         auto elapsed = std::chrono::steady_clock::now() - start;
         return std::chrono::duration<double,std::nano>(elapsed).count() / iterations;
     };

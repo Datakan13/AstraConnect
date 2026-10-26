@@ -19,7 +19,9 @@ inline EventType returnEventType(const std::string& requested) {
     if (requested == "ACCOUNT_CONFIG_UPDATE")    return EventType::ACCOUNT_CONFIG_UPDATE;
     if (requested == "STRATEGY_UPDATE")          return EventType::STRATEGY_UPDATE;
     if (requested == "GRID_UPDATE")              return EventType::GRID_UPDATE;
-    if (requested == "CONDITIONAL_ORDER_REJECT") return EventType::CONDITIONAL_ORDER_REJECT;
+    // The wire name is CONDITIONAL_ORDER_TRIGGER_REJECT
+    if (requested == "CONDITIONAL_ORDER_TRIGGER_REJECT" ||
+        requested == "CONDITIONAL_ORDER_REJECT") return EventType::CONDITIONAL_ORDER_REJECT;
     if (requested == "ALGO_UPDATE")              return EventType::ALGO_UPDATE;
     if (requested == "listenKeyExpired")         return EventType::LISTEN_KEY_EXPIRED;
 
@@ -54,7 +56,8 @@ inline AccountUpdateType returnAccountUpdateType(const std::string& reason) {
 inline MarginType returnMarginType(const std::string& type) {
     if (type == "isolated" || type == "ISOLATED")
         return MarginType::ISOLATED;
-    if (type == "cross" || type == "CROSS")
+    // ACCOUNT_UPDATE sends "cross", MARGIN_CALL sends "CROSSED"
+    if (type == "cross" || type == "CROSS" || type == "crossed" || type == "CROSSED")
         return MarginType::CROSS;
 
     throw std::invalid_argument("Unknown MarginType: " + type);

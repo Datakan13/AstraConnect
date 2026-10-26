@@ -302,8 +302,8 @@ public:
     std::string symbol;          // "BTCUSDT"
     TimeInForce timeInForce;     // "GTC"
     OrderType type;              // "TRAILING_STOP_MARKET"
-    AstraConnect::Utils::Fixed activatePrice;        // "9020"
-    double priceRate;            // "0.3"
+    AstraConnect::Utils::Fixed activatePrice = 0;    // "9020", trailing stops only
+    double priceRate = 0;        // "0.3", trailing stops only
     int64_t updateTime;          // 1571110484038
     WorkingType workingType;     // "CONTRACT_PRICE"
     bool priceProtect;           // false
@@ -360,9 +360,11 @@ public:
         obj["type"].get_string(intermediateString);
         type = returnOrderType(intermediateString);
 
-        activatePrice = AstraConnect::Utils::readFixed(obj["activatePrice"]);
-
-        priceRate = obj["priceRate"].get_double_in_string().value();
+        // Only returned for TRAILING_STOP_MARKET orders
+        if(type == OrderType::TRAILING_STOP_MARKET) {
+            activatePrice = AstraConnect::Utils::readFixed(obj["activatePrice"]);
+            priceRate = obj["priceRate"].get_double_in_string().value();
+        }
 
         updateTime = obj["updateTime"].get_int64().value();
 
@@ -418,8 +420,8 @@ public:
     AstraConnect::Utils::Fixed origQty;
     AstraConnect::Utils::Fixed price;
     AstraConnect::Utils::Fixed stopPrice;
-    AstraConnect::Utils::Fixed activatePrice;
-    double priceRate;
+    AstraConnect::Utils::Fixed activatePrice = 0;   // trailing stops only
+    double priceRate = 0;                           // trailing stops only
 
     bool reduceOnly;
     bool closePosition;
@@ -443,8 +445,6 @@ public:
         origQty        = AstraConnect::Utils::readFixed(result["origQty"]);
         price          = AstraConnect::Utils::readFixed(result["price"]);
         stopPrice      = AstraConnect::Utils::readFixed(result["stopPrice"]);
-        activatePrice  = AstraConnect::Utils::readFixed(result["activatePrice"]);
-        priceRate      = result["priceRate"].get_double_in_string().value();
 
         // bools
         reduceOnly     = result["reduceOnly"].get_bool().value();
@@ -467,6 +467,12 @@ public:
 
         result["type"].get_string(tmp);
         type = returnOrderType(tmp);
+
+        // Only returned for TRAILING_STOP_MARKET orders
+        if(type == OrderType::TRAILING_STOP_MARKET) {
+            activatePrice = AstraConnect::Utils::readFixed(result["activatePrice"]);
+            priceRate     = result["priceRate"].get_double_in_string().value();
+        }
 
         result["workingType"].get_string(tmp);
         workingType = returnWorkingType(tmp);
