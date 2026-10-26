@@ -20,6 +20,7 @@
 #include <AstraLib/Atomic/spinlock.hpp>
 #include "testHarness.hpp"
 
+#include <algorithm>
 #include <atomic>
 #include <map>
 #include <memory>

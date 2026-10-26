@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <string>
 #include <openssl/hmac.h>
 #include <stdexcept>
